@@ -31,7 +31,7 @@ def load_abi(name: str) -> str:
 
     abi = name.lower()
 
-    path = f"{os.path.dirname(os.path.abspath(__file__))}/../assets/"
+    path = f"{os.path.dirname(os.path.abspath(__file__))}/assets/"
     with open(os.path.abspath(path + f"{abi}.json")) as f:
         abi: str = json.load(f)
     return abi
