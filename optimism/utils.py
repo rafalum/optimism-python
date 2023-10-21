@@ -35,3 +35,9 @@ def load_abi(name: str) -> str:
     with open(os.path.abspath(path + f"{abi}.json")) as f:
         abi: str = json.load(f)
     return abi
+
+def determine_direction(from_chain_id, to_chain_id):
+    if from_chain_id < to_chain_id:
+        return True
+    else:
+        return False
