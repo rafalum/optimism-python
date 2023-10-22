@@ -41,14 +41,43 @@ class OptimismPortal():
 
 class StandardBridge():
     
-    def __init__():
-        pass
+    def __init__(self, account, from_chain_id=1, to_chain_id=10, provider=None):
+        
+        l1_to_l2 = determine_direction(from_chain_id, to_chain_id)
+        l2 = not l1_to_l2
+
+        if provider is None:
+            self.provider = get_provider(l2=l2)
+        else:
+            self.provider = provider
+        
+        self.from_chain_id = from_chain_id
+        self.to_chain_id = to_chain_id
+
+        self.account = account
+
+        if l1_to_l2:
+            self.contract = self.provider.eth.contract(address=L1_STANDARD_BRIDGE, abi=load_abi("L1_STANDARD_BRIDGE"))
+        else:
+            self.contract = self.provider.eth.contract(address=L2_STANDARD_BRIDGE, abi=load_abi("L2_STANDARD_BRIDGE"))
 
     def bridge_eth():
         pass
     
-    def bridge_eth_to():
-        pass
+    def deposit_eth_to(self, to, gas_limit, extra_data, value):
+        
+        deposti_eth_to_tx = self.contract.functions.depositETHTo(to, gas_limit, extra_data).build_transaction({
+            "from": self.account.address,
+            "gas": gas_limit,
+            "nonce": self.provider.eth.get_transaction_count(self.account.address),
+            "value": value
+        })
+
+        signed_txn = self.provider.eth.account.sign_transaction(deposti_eth_to_tx, self.account.key)
+        txn_hash = self.provider.eth.send_raw_transaction(signed_txn.rawTransaction)
+        txn_receipt = self.provider.eth.wait_for_transaction_receipt(txn_hash)
+
+        return txn_hash, txn_receipt
 
     def bridge_erc20():
         pass
