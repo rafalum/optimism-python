@@ -126,3 +126,36 @@ class CrossChainMessenger(Contract):
     def message_nonce(self):
 
         return self.contract.functions.messageNonce().call()
+    
+class L2OutputOracle():
+
+    def __init__(self, account, provider=None):
+            
+        if provider is None:
+            self.provider = get_provider()
+        else:
+            self.provider = provider
+
+        self.account = account
+
+        self.contract = self.provider.eth.contract(address=L2_OUTPUT_ORACLE, abi=load_abi("L2_OUTPUT_ORACLE"))
+
+    def next_output_index(self):
+
+        return self.contract.functions.nextOutputIndex().call()
+    
+    def get_l2_output_index_after(self, l2_block_nummer):
+
+        return self.contract.functions.getL2OutputIndexAfter(l2_block_nummer).call()
+    
+    def get_l2_output_after(self, l2_block_number):
+
+        output_root, timestamp, l2_block_number =  self.contract.functions.getL2OutputAfter(l2_block_number).call()
+
+        return output_root.hex(), timestamp, l2_block_number
+    
+    def get_l2_output(self, l2_output_index):
+
+        output_root, timestamp, l2_block_number =  self.contract.functions.getL2Output(l2_output_index).call()
+
+        return output_root.hex(), timestamp, l2_block_number
