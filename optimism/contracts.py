@@ -17,21 +17,28 @@ class Contract():
     
 class OptimismPortal(Contract):
 
-    def __init__(self, account, provider=None):
+    def __init__(self, account, provider=None, network="mainnet"):
         
         if provider is None:
-            self.provider = get_provider()
+            self.provider = get_provider(network=network)
         else:
             self.provider = provider
+
+        if network == "mainnet":
+            self.address = OPTIMISM_PORTAL
+        elif network == "goerli":
+            self.address = OPTIMISM_PORTAL_GOERLI
+        elif network == "sepolia":
+            self.address = OPTIMISM_PORTAL_SEPOLIA
         
         self.account = account
-        self.contract = self.provider.eth.contract(address=OPTIMISM_PORTAL, abi=load_abi("OPTIMISM_PORTAL"))
+        self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("OPTIMISM_PORTAL"))
 
     def deposit_transaction(self, to, value, gas_limit, is_creation, data):
         
         deposit_transaction_tx = self.contract.functions.depositTransaction(to, value, gas_limit, is_creation, data).build_transaction({
             "from": self.account.address,
-            "gas": gas_limit,
+            "gas": 500000,
             "value": value,
             "nonce": self.provider.eth.get_transaction_count(self.account.address)
         })
@@ -49,15 +56,30 @@ class OptimismPortal(Contract):
 
 class StandardBridge(Contract):
     
-    def __init__(self, account, from_chain_id=1, to_chain_id=10, provider=None):
+    def __init__(self, account, from_chain_id=1, to_chain_id=10, provider=None, network="mainnet"):
         
         l1_to_l2 = determine_direction(from_chain_id, to_chain_id)
         l2 = not l1_to_l2
 
         if provider is None:
-            self.provider = get_provider(l2=l2)
+            self.provider = get_provider(l2=l2, network=network)
         else:
             self.provider = provider
+
+        if l1_to_l2:
+            if network == "mainnet":
+                self.address = L1_STANDARD_BRIDGE
+            elif network == "goerli":
+                self.address = L1_STANDARD_BRIDGE_GOERLI
+            elif network == "sepolia":
+                self.address = L1_STANDARD_BRIDGE_SEPOLIA
+        else:
+            if network == "mainnet":
+                self.address = L2_STANDARD_BRIDGE
+            elif network == "goerli":
+                self.address = L2_STANDARD_BRIDGE_GOERLI
+            elif network == "sepolia":
+                self.address = L2_STANDARD_BRIDGE_SEPOLIA
         
         self.from_chain_id = from_chain_id
         self.to_chain_id = to_chain_id
@@ -65,9 +87,9 @@ class StandardBridge(Contract):
         self.account = account
 
         if l1_to_l2:
-            self.contract = self.provider.eth.contract(address=L1_STANDARD_BRIDGE, abi=load_abi("L1_STANDARD_BRIDGE"))
+            self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("L1_STANDARD_BRIDGE"))
         else:
-            self.contract = self.provider.eth.contract(address=L2_STANDARD_BRIDGE, abi=load_abi("L2_STANDARD_BRIDGE"))
+            self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("L2_STANDARD_BRIDGE"))
 
     def bridge_eth():
         pass
@@ -76,7 +98,7 @@ class StandardBridge(Contract):
         
         deposit_eth_to_tx = self.contract.functions.depositETHTo(to, gas_limit, extra_data).build_transaction({
             "from": self.account.address,
-            "gas": gas_limit,
+            "gas": 500000,
             "nonce": self.provider.eth.get_transaction_count(self.account.address),
             "value": value
         })
@@ -91,15 +113,30 @@ class StandardBridge(Contract):
 
 class CrossChainMessenger(Contract):
 
-    def __init__(self, account, from_chain_id=1, to_chain_id=10, to_l2=True, provider=None):
+    def __init__(self, account, from_chain_id=1, to_chain_id=10, to_l2=True, provider=None, network="mainnet"):
 
         l1_to_l2 = determine_direction(from_chain_id, to_chain_id)
         l2 = not l1_to_l2
 
         if provider is None:
-            self.provider = get_provider(l2=l2)
+            self.provider = get_provider(l2=l2, network=network)
         else:
             self.provider = provider
+
+        if l1_to_l2:
+            if network == "mainnet":
+                self.address = L1_CROSS_CHAIN_MESSENGER
+            elif network == "goerli":
+                self.address = L1_CROSS_CHAIN_MESSENGER_GOERLI
+            elif network == "sepolia":
+                self.address = L1_CROSS_CHAIN_MESSENGER_SEPOLIA
+        else:
+            if network == "mainnet":
+                self.address = L2_CROSS_CHAIN_MESSENGER
+            elif network == "goerli":
+                self.address = L2_CROSS_CHAIN_MESSENGER_GOERLI
+            elif network == "sepolia":
+                self.address = L2_CROSS_CHAIN_MESSENGER_SEPOLIA
         
         self.from_chain_id = from_chain_id
         self.to_chain_id = to_chain_id
@@ -107,16 +144,16 @@ class CrossChainMessenger(Contract):
         self.account = account
 
         if l1_to_l2:
-            self.contract = self.provider.eth.contract(address=L1_CROSS_CHAIN_MESSENGER, abi=load_abi("L1_CROSS_MESSENGER"))
+            self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("L1_CROSS_MESSENGER"))
         else:
-            self.contract = self.provider.eth.contract(address=L2_CROSS_CHAIN_MESSENGER, abi=load_abi("L2_CROSS_MESSENGER"))
+            self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("L2_CROSS_MESSENGER"))
 
 
     def send_message(self, target, message, min_gas_limit, value=None):
 
         send_message_tx = self.contract.functions.sendMessage(target, message, min_gas_limit).build_transaction({
             "from": self.account.address,
-            "gas": min_gas_limit,
+            "gas": 500000,
             "nonce": self.provider.eth.get_transaction_count(self.account.address),
             "value": 0 if value is None else value
         })
@@ -129,16 +166,23 @@ class CrossChainMessenger(Contract):
     
 class L2OutputOracle():
 
-    def __init__(self, account, provider=None):
+    def __init__(self, account, provider=None, network="mainnet"):
             
         if provider is None:
-            self.provider = get_provider()
+            self.provider = get_provider(network=network)
         else:
             self.provider = provider
 
+        if network == "mainnet":
+            self.address = L2_OUTPUT_ORACLE
+        elif network == "goerli":
+            self.address = L2_OUTPUT_ORACLE_GOERLI
+        elif network == "sepolia":
+            self.address = L2_OUTPUT_ORACLE_SEPOLIA
+
         self.account = account
 
-        self.contract = self.provider.eth.contract(address=L2_OUTPUT_ORACLE, abi=load_abi("L2_OUTPUT_ORACLE"))
+        self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("L2_OUTPUT_ORACLE"))
 
     def next_output_index(self):
 
