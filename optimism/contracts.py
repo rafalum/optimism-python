@@ -3,7 +3,19 @@ from web3 import Web3
 from .addresses import *
 from .utils import get_provider, load_abi, determine_direction
 
-class OptimismPortal():
+class Contract():
+
+    def __int__():
+        pass
+
+    def sign_and_broadcast(self, transaction):
+        signed_txn = self.provider.eth.account.sign_transaction(transaction, self.account.key)
+        txn_hash = self.provider.eth.send_raw_transaction(signed_txn.rawTransaction)
+        txn_receipt = self.provider.eth.wait_for_transaction_receipt(txn_hash)
+
+        return txn_hash, txn_receipt
+    
+class OptimismPortal(Contract):
 
     def __init__(self, account, provider=None):
         
@@ -24,11 +36,7 @@ class OptimismPortal():
             "nonce": self.provider.eth.get_transaction_count(self.account.address)
         })
 
-        signed_txn = self.provider.eth.account.sign_transaction(deposit_transaction_tx, self.account.key)
-        txn_hash = self.provider.eth.send_raw_transaction(signed_txn.rawTransaction)
-        txn_receipt = self.provider.eth.wait_for_transaction_receipt(txn_hash)
-
-        return txn_hash, txn_receipt
+        return self.sign_and_broadcast(deposit_transaction_tx)
     
     def prove_withdrawl_transaction():
         pass
@@ -39,7 +47,7 @@ class OptimismPortal():
     def is_output_finalized():
         pass
 
-class StandardBridge():
+class StandardBridge(Contract):
     
     def __init__(self, account, from_chain_id=1, to_chain_id=10, provider=None):
         
@@ -66,18 +74,14 @@ class StandardBridge():
     
     def deposit_eth_to(self, to, gas_limit, extra_data, value):
         
-        deposti_eth_to_tx = self.contract.functions.depositETHTo(to, gas_limit, extra_data).build_transaction({
+        deposit_eth_to_tx = self.contract.functions.depositETHTo(to, gas_limit, extra_data).build_transaction({
             "from": self.account.address,
             "gas": gas_limit,
             "nonce": self.provider.eth.get_transaction_count(self.account.address),
             "value": value
         })
 
-        signed_txn = self.provider.eth.account.sign_transaction(deposti_eth_to_tx, self.account.key)
-        txn_hash = self.provider.eth.send_raw_transaction(signed_txn.rawTransaction)
-        txn_receipt = self.provider.eth.wait_for_transaction_receipt(txn_hash)
-
-        return txn_hash, txn_receipt
+        return self.sign_and_broadcast(deposit_eth_to_tx)
 
     def bridge_erc20():
         pass
@@ -85,7 +89,7 @@ class StandardBridge():
     def bridge_erc20_to():
         pass
 
-class CrossChainMessenger():
+class CrossChainMessenger(Contract):
 
     def __init__(self, account, from_chain_id=1, to_chain_id=10, to_l2=True, provider=None):
 
@@ -117,11 +121,7 @@ class CrossChainMessenger():
             "value": 0 if value is None else value
         })
 
-        signed_txn = self.provider.eth.account.sign_transaction(send_message_tx, self.account.key)
-        txn_hash = self.provider.eth.send_raw_transaction(signed_txn.rawTransaction)
-        txn_receipt = self.provider.eth.wait_for_transaction_receipt(txn_hash)
-
-        return txn_hash, txn_receipt
+        return self.sign_and_broadcast(send_message_tx)
     
     def message_nonce(self):
 
