@@ -12,21 +12,21 @@ load_dotenv()
 def get_env_variable(var_name):
     return os.environ.get(var_name)
 
-def get_provider(l2=False):
+def get_provider(l2=False, network="mainnet"):
     if l2:
-        provider_url = get_env_variable("PROVIDER_L2")
+        provider_url = get_env_variable("PROVIDER_L2" + ("_" + str.upper(network) if network != "mainnet" else ""))
     else:
-        provider_url = get_env_variable("PROVIDER_L1")
+        provider_url = get_env_variable("PROVIDER_L1" + ("_" + str.upper(network) if network != "mainnet" else ""))
 
     return Web3(Web3.HTTPProvider(provider_url))
 
-def get_account(l2=False):
+def get_account(l2=False, network="mainnet"):
     if l2:
         pk = get_env_variable("PRIVATE_KEY_L2")
     else:
         pk = get_env_variable("PRIVATE_KEY_L1")
 
-    return get_provider(l2=l2).eth.account.from_key(pk)
+    return get_provider(l2=l2, network=network).eth.account.from_key(pk)
 
 def load_abi(name: str) -> str:
 
