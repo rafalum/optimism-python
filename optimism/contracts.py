@@ -45,8 +45,15 @@ class OptimismPortal(Contract):
 
         return self.sign_and_broadcast(deposit_transaction_tx)
     
-    def prove_withdrawl_transaction():
-        pass
+    def prove_withdrawl_transaction(self, tx, l2_output_index, output_root_proof, withdrawl_proof):
+        
+        prove_withdrawl_transaction_tx = self.contract.functions.proveWithdrawalTransaction(tx, l2_output_index, output_root_proof, withdrawl_proof).build_transaction({
+            "from": self.account.address,
+            "gas": 1000000,
+            "nonce": self.provider.eth.get_transaction_count(self.account.address)
+        })
+
+        return self.sign_and_broadcast(prove_withdrawl_transaction_tx)
 
     def finalize_withdrawl_transaction():
         pass
@@ -108,12 +115,23 @@ class StandardBridge(Contract):
     def bridge_erc20():
         pass
 
+    def withdraw_eth_to(self, to, amount, gas_limit, extra_data):
+        
+        withdraw_eth_to_tx = self.contract.functions.withdrawTo("0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000", to, amount, gas_limit, extra_data).build_transaction({
+            "from": self.account.address,
+            "gas": 500000,
+            "nonce": self.provider.eth.get_transaction_count(self.account.address),
+            "value": amount
+        })
+
+        return self.sign_and_broadcast(withdraw_eth_to_tx)
+
     def bridge_erc20_to():
         pass
 
 class CrossChainMessenger(Contract):
 
-    def __init__(self, account, from_chain_id=1, to_chain_id=10, to_l2=True, provider=None, network="mainnet"):
+    def __init__(self, account, from_chain_id=1, to_chain_id=10, provider=None, network="mainnet"):
 
         l1_to_l2 = determine_direction(from_chain_id, to_chain_id)
         l2 = not l1_to_l2
@@ -183,6 +201,10 @@ class L2OutputOracle():
         self.account = account
 
         self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("L2_OUTPUT_ORACLE"))
+
+    def latest_output_index(self):
+
+        return self.contract.functions.latestOutputIndex().call()
 
     def next_output_index(self):
 
