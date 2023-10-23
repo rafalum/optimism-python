@@ -1,7 +1,7 @@
 # Optimism-Python: Unofficial Python Client for the OP-Stack
 
 <div align="center">
-    ![OP-Stack](./op.png)
+    <img src="./op.png" width=200 height=200 />
 </div>
 
 
