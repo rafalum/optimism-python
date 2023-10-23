@@ -225,3 +225,34 @@ class L2OutputOracle():
         output_root, timestamp, l2_block_number =  self.contract.functions.getL2Output(l2_output_index).call()
 
         return output_root.hex(), timestamp, l2_block_number
+    
+class L2ToL1MessagePasser(Contract):
+
+    def __init__(self, account, provider=None, network="mainnet"):
+
+        if provider is None:
+            self.provider = get_provider(l2=True, network=network)
+        else:
+            self.provider = provider
+
+        if network == "mainnet":
+            self.address = L2_TO_L1_MESSAGE_PASSER
+        elif network == "goerli":
+            self.address = L2_TO_L1_MESSAGE_PASSER_GOERLI
+        elif network == "sepolia":
+            self.address = L2_TO_L1_MESSAGE_PASSER_SEPOLIA
+
+        self.account = account
+
+        self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("L2_TO_L1_MESSAGE_PASSER"))
+
+    def initiate_withdrawl(self, to, gas_limit, data, value):
+
+        initiate_withdrawl_tx = self.contract.functions.initiateWithdrawal(to, gas_limit, data).build_transaction({
+            "from": self.account.address,
+            "gas": 500000,
+            "nonce": self.provider.eth.get_transaction_count(self.account.address),
+            "value": value
+        })
+
+        return self.sign_and_broadcast(initiate_withdrawl_tx)
