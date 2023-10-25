@@ -56,8 +56,15 @@ class OptimismPortal(Contract):
 
         return self.sign_and_broadcast(prove_withdrawl_transaction_tx)
 
-    def finalize_withdrawl_transaction():
-        pass
+    def finalize_withdrawl_transaction(self, tx):
+        
+        finalize_withdrawl_transaction_tx = self.contract.functions.finalizeWithdrawalTransaction(tx).build_transaction({
+            "from": self.account.address,
+            "gas": 500000,
+            "nonce": self.provider.eth.get_transaction_count(self.account.address)
+        })
+
+        return self.sign_and_broadcast(finalize_withdrawl_transaction_tx)
 
     def is_output_finalized():
         pass
@@ -206,7 +213,7 @@ class CrossChainMessenger(Contract):
     def prove_message(self, l2_txn_hash, account_l1=None):
 
         if self.l1_to_l2:
-            raise Exception("Cannot prove message on L1: Instantiate a L2CrossChainMessenger")
+            raise Exception("Cannot prove message on L1CrossChainMessenger: Instantiate a L2CrossChainMessenger")
         
         if account_l1 is None:
             account_l1 = self.account
@@ -220,8 +227,23 @@ class CrossChainMessenger(Contract):
         optimism_portal = OptimismPortal(account_l1, network=self.network)
         return optimism_portal.prove_withdrawl_transaction(tuple(withdrawl_tx.values()), proof["l2OutputIndex"], tuple(proof["outputRootProof"].values()), tuple(proof["withdrawalProof"]))
     
-    def finalize_message(self):
-        pass
+    def finalize_message(self, l2_txn_hash, account_l1=None):
+        
+        if self.l1_to_l2:
+            raise Exception("Cannot finalize message on L1CrossChainMessenger: Instantiate a L2CrossChainMessenger")
+        
+        if account_l1 is None:
+            account_l1 = self.account
+
+        l2_txn = self.provider.eth.get_transaction(l2_txn_hash)
+        l2_txn_receipt = self.provider.eth.get_transaction_receipt(l2_txn_hash)
+
+        withdrawl_tx = to_low_level_message(l2_txn, l2_txn_receipt)
+        
+        optimism_portal = OptimismPortal(self.account, network=self.network)
+        return optimism_portal.finalize_withdrawl_transaction(tuple(withdrawl_tx.values()))
+        
+
 
     def _get_bedrock_message_proof(self, txn, withdrawl_hash, account_l1):
 
