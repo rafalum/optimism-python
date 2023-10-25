@@ -79,3 +79,14 @@ def to_low_level_message(txn, txn_receipt):
         "message": message_passed_log.data[160:160 + message_length].hex(),
         "withdrawlHash": message_passed_log.data[96:128].hex()
     }
+
+def make_state_trie_proof(provider, block_number, address, slot):
+
+    proof = provider.eth.get_proof(address, [slot], block_identifier=block_number)
+
+    return {
+        'account_proof': proof.accountProof,
+        'storage_proof': proof.storageProof[0].proof,
+        'storage_value': proof.storageProof[0].value,
+        'storage_root': proof.storageHash
+    }
