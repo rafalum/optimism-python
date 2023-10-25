@@ -1,7 +1,8 @@
 from web3 import Web3
 
 from .addresses import *
-from .utils import get_provider, load_abi, determine_direction
+from .constants import OUTPUT_ROOT_PROOF_VERSION
+from .utils import get_provider, load_abi, determine_direction, to_low_level_message, hash_message_hash, make_state_trie_proof
 
 class Contract():
 
@@ -133,15 +134,15 @@ class CrossChainMessenger(Contract):
 
     def __init__(self, account, from_chain_id=1, to_chain_id=10, provider=None, network="mainnet"):
 
-        l1_to_l2 = determine_direction(from_chain_id, to_chain_id)
-        l2 = not l1_to_l2
+        self.l1_to_l2 = determine_direction(from_chain_id, to_chain_id)
+        l2 = not self.l1_to_l2
 
         if provider is None:
             self.provider = get_provider(l2=l2, network=network)
         else:
             self.provider = provider
 
-        if l1_to_l2:
+        if self.l1_to_l2:
             if network == "mainnet":
                 self.address = L1_CROSS_CHAIN_MESSENGER
             elif network == "goerli":
@@ -159,9 +160,10 @@ class CrossChainMessenger(Contract):
         self.from_chain_id = from_chain_id
         self.to_chain_id = to_chain_id
 
+        self.network = network
         self.account = account
 
-        if l1_to_l2:
+        if self.l1_to_l2:
             self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("L1_CROSS_MESSENGER"))
         else:
             self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("L2_CROSS_MESSENGER"))
@@ -181,6 +183,72 @@ class CrossChainMessenger(Contract):
     def message_nonce(self):
 
         return self.contract.functions.messageNonce().call()
+    
+    def deposit_eth(self, value):
+
+        if not self.l1_to_l2:
+            raise Exception("Cannot deposit ETH to L1: Instantiate a L2CrossChainMessenger and call withdraw_eth_to()")
+        
+        return self.send_message(self.account.address, b"", 0, value)
+
+    def withdraw_eth(self, value):
+        
+        if self.l1_to_l2:
+            raise Exception("Cannot withdraw ETH to L2: Instantiate a L1CrossChainMessenger and call deposit_eth_to()")
+        
+        l2_to_l1_message_passer = L2ToL1MessagePasser(self.account, network=self.network)
+        
+        return l2_to_l1_message_passer.initiate_withdrawl(self.account.address, 0, b"", value)
+
+    def wait_for_message_status(self):
+        pass
+    
+    def prove_message(self, l2_txn_hash, account_l1=None):
+
+        if self.l1_to_l2:
+            raise Exception("Cannot prove message on L1: Instantiate a L2CrossChainMessenger")
+        
+        if account_l1 is None:
+            account_l1 = self.account
+        
+        l2_txn = self.provider.eth.get_transaction(l2_txn_hash)
+        l2_txn_receipt = self.provider.eth.get_transaction_receipt(l2_txn_hash)
+
+        withdrawl_tx = to_low_level_message(l2_txn, l2_txn_receipt)
+        proof = self._get_bedrock_message_proof(l2_txn, withdrawl_tx["withdrawlHash"], account_l1)
+
+        optimism_portal = OptimismPortal(account_l1, network=self.network)
+        return optimism_portal.prove_withdrawl_transaction(tuple(withdrawl_tx.values()), proof["l2OutputIndex"], tuple(proof["outputRootProof"].values()), tuple(proof["withdrawalProof"]))
+    
+    def finalize_message(self):
+        pass
+
+    def _get_bedrock_message_proof(self, txn, withdrawl_hash, account_l1):
+
+        l2_block_number = txn.blockNumber
+
+        l2_output_oracle = L2OutputOracle(account_l1, network=self.network)
+
+        latest_l2_output_index = l2_output_oracle.latest_output_index()
+        output_root, timestamp, l2_block_number = l2_output_oracle.get_l2_output(latest_l2_output_index)
+
+        message_slot = hash_message_hash(withdrawl_hash)
+
+        state_trie_proof = make_state_trie_proof(self.provider, l2_block_number, L2_TO_L1_MESSAGE_PASSER, message_slot)
+
+        block = self.provider.eth.get_block(l2_block_number)
+        
+        return {
+            "outputRootProof": {
+                "version": OUTPUT_ROOT_PROOF_VERSION,
+                "stateRoot": block.stateRoot.hex(),
+                "messagePasserStorageRoot": state_trie_proof["storage_root"].hex(),
+                "latestBlockhash": block.hash.hex(),
+            },
+            "withdrawalProof": [el.hex() for el in state_trie_proof["storage_proof"]],
+            "l2OutputIndex": latest_l2_output_index,
+        }
+
     
 class L2OutputOracle():
 
