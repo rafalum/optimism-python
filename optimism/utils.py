@@ -76,9 +76,8 @@ def to_low_level_message(txn, txn_receipt):
         "target": log_to_address(message_passed_log.topics[3].hex()),
         "value": int(message_passed_log.data[:32].hex(), 16),
         "minGasLimit": int(message_passed_log.data[32:64].hex(), 16),
-        "message": message_passed_log.data[160:160 + message_length].hex(),
-        "withdrawlHash": message_passed_log.data[96:128].hex()
-    }
+        "message": message_passed_log.data[160:160 + message_length].hex()
+    }, message_passed_log.data[96:128].hex()
 
 def make_state_trie_proof(provider, block_number, address, slot):
 

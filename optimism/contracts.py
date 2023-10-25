@@ -14,7 +14,7 @@ class Contract():
         txn_hash = self.provider.eth.send_raw_transaction(signed_txn.rawTransaction)
         txn_receipt = self.provider.eth.wait_for_transaction_receipt(txn_hash)
 
-        return txn_hash, txn_receipt
+        return txn_hash.hex(), txn_receipt
     
 class OptimismPortal(Contract):
 
@@ -221,11 +221,11 @@ class CrossChainMessenger(Contract):
         l2_txn = self.provider.eth.get_transaction(l2_txn_hash)
         l2_txn_receipt = self.provider.eth.get_transaction_receipt(l2_txn_hash)
 
-        withdrawl_tx = to_low_level_message(l2_txn, l2_txn_receipt)
-        proof = self._get_bedrock_message_proof(l2_txn, withdrawl_tx["withdrawlHash"], account_l1)
+        withdrawl_message, withrawl_message_hash = to_low_level_message(l2_txn, l2_txn_receipt)
+        proof = self._get_bedrock_message_proof(l2_txn, withrawl_message_hash, account_l1)
 
         optimism_portal = OptimismPortal(account_l1, network=self.network)
-        return optimism_portal.prove_withdrawl_transaction(tuple(withdrawl_tx.values()), proof["l2OutputIndex"], tuple(proof["outputRootProof"].values()), tuple(proof["withdrawalProof"]))
+        return optimism_portal.prove_withdrawl_transaction(tuple(withdrawl_message.values()), proof["l2OutputIndex"], tuple(proof["outputRootProof"].values()), tuple(proof["withdrawalProof"]))
     
     def finalize_message(self, l2_txn_hash, account_l1=None):
         
@@ -238,11 +238,10 @@ class CrossChainMessenger(Contract):
         l2_txn = self.provider.eth.get_transaction(l2_txn_hash)
         l2_txn_receipt = self.provider.eth.get_transaction_receipt(l2_txn_hash)
 
-        withdrawl_tx = to_low_level_message(l2_txn, l2_txn_receipt)
+        withdrawl_message, withrawl_message_hash = to_low_level_message(l2_txn, l2_txn_receipt)
         
         optimism_portal = OptimismPortal(self.account, network=self.network)
-        return optimism_portal.finalize_withdrawl_transaction(tuple(withdrawl_tx.values()))
-        
+        return optimism_portal.finalize_withdrawl_transaction(tuple(withdrawl_message.values()))
 
 
     def _get_bedrock_message_proof(self, txn, withdrawl_hash, account_l1):
