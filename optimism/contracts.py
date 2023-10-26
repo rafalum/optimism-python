@@ -1,7 +1,9 @@
 from web3 import Web3
 
 from .addresses import *
-from .constants import OUTPUT_ROOT_PROOF_VERSION
+from .constants import OUTPUT_ROOT_PROOF_VERSION, CHALLENGE_PERIOD_MAINNET, CHALLENGE_PERIOD_TESTNET
+
+from .types import MessageStatus
 from .utils import get_provider, load_abi, determine_direction, to_low_level_message, hash_message_hash, make_state_trie_proof
 
 class Contract():
@@ -68,6 +70,10 @@ class OptimismPortal(Contract):
 
     def is_output_finalized():
         pass
+
+    def proven_withdrawls(self, withdrawl_hash):
+
+        return self.contract.functions.provenWithdrawals(withdrawl_hash).call()
 
 class StandardBridge(Contract):
     
@@ -170,6 +176,8 @@ class CrossChainMessenger(Contract):
         self.network = network
         self.account = account
 
+        self.challenge_period = CHALLENGE_PERIOD_MAINNET if network == "mainnet" else CHALLENGE_PERIOD_TESTNET
+
         if self.l1_to_l2:
             self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("L1_CROSS_MESSENGER"))
         else:
@@ -207,8 +215,52 @@ class CrossChainMessenger(Contract):
         
         return l2_to_l1_message_passer.initiate_withdrawl(self.account.address, 0, b"", value)
 
-    def wait_for_message_status(self):
-        pass
+    def get_message_status(self, txn_hash):
+        
+        try:
+            txn = self.provider.eth.get_transaction(txn_hash)
+        except:
+            raise Exception(f"Transaction not found: might need to use the {'L2' if self.l1_to_l2 else 'L1'}CrossChainMessenger")
+        
+        txn_receipt = self.provider.eth.get_transaction_receipt(txn_hash)
+
+        if self.l1_to_l2:
+            if txn_receipt is None:
+                return MessageStatus.UNCONFIRMED_L1_TO_L2_MESSAGE
+            else:
+                if txn_receipt.status == 1:
+                    return MessageStatus.RELAYED
+                else:
+                    return MessageStatus.FAILED_L1_TO_L2_MESSAGE
+        else:
+            if txn_receipt is None:
+                return MessageStatus.UNCONFIRMED_L2_TO_L1_MESSAGE
+            else:
+                if txn_receipt.status == 1:
+                    l2_output_oracle = L2OutputOracle(self.account, network=self.network)
+                    latest_block_number = l2_output_oracle.latest_block_number()
+
+                    try:
+                        _, message_hash = to_low_level_message(txn, txn_receipt)
+                    except:
+                        raise Exception("Transaction is not a valid L2 to L1 message")
+
+                    if int(latest_block_number) < int(txn.blockNumber):
+                        return MessageStatus.STATE_ROOT_NOT_PUBLISHED
+                    else:
+                        optimism_portal = OptimismPortal(self.account, network=self.network)
+                        proven = optimism_portal.proven_withdrawls(message_hash)
+                        if proven[-1] == 0:
+                            return MessageStatus.READY_TO_PROVE
+                        else:
+                            current_timestamp = self.provider.eth.get_block(self.provider.eth.block_number).timestamp
+                            if current_timestamp > proven[1] + self.challenge_period:
+                                return MessageStatus.READY_FOR_RELAY
+                            else:
+                                return MessageStatus.IN_CHALLENGE_PERIOD
+                else:
+                    return MessageStatus.FAILED_L2_TO_L1_MESSAGE
+
     
     def prove_message(self, l2_txn_hash, account_l1=None):
 
@@ -294,6 +346,10 @@ class L2OutputOracle():
     def latest_output_index(self):
 
         return self.contract.functions.latestOutputIndex().call()
+    
+    def latest_block_number(self):
+
+        return self.contract.functions.latestBlockNumber().call()
 
     def next_output_index(self):
 
