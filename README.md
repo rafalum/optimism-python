@@ -1,7 +1,7 @@
 # Optimism-Python: Unofficial Python Client for the OP-Stack
 
 <div align="center">
-    <img src="./op.png" width=200 height=200 />
+    <img src="https://github.com/rafalum/optimism-python/assets/38735195/12cb4de6-7cb5-403d-993b-5461febd5b72" width=200 height=200 />
 </div>
 
 
