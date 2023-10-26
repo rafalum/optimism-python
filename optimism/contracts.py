@@ -1,10 +1,9 @@
 from web3 import Web3
 
 from .addresses import *
-from .constants import OUTPUT_ROOT_PROOF_VERSION, CHALLENGE_PERIOD_MAINNET, CHALLENGE_PERIOD_TESTNET
 
 from .types import MessageStatus
-from .utils import get_provider, load_abi, determine_direction, to_low_level_message, hash_message_hash, make_state_trie_proof
+from .utils import get_provider, load_abi, determine_direction
 
 class Contract():
 
@@ -143,7 +142,7 @@ class StandardBridge(Contract):
     def bridge_erc20_to():
         pass
 
-class CrossChainMessenger(Contract):
+class CrossChainMessengerContract(Contract):
 
     def __init__(self, account, from_chain_id=1, to_chain_id=10, provider=None, network="mainnet"):
 
@@ -176,8 +175,6 @@ class CrossChainMessenger(Contract):
         self.network = network
         self.account = account
 
-        self.challenge_period = CHALLENGE_PERIOD_MAINNET if network == "mainnet" else CHALLENGE_PERIOD_TESTNET
-
         if self.l1_to_l2:
             self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("L1_CROSS_MESSENGER"))
         else:
@@ -198,129 +195,6 @@ class CrossChainMessenger(Contract):
     def message_nonce(self):
 
         return self.contract.functions.messageNonce().call()
-    
-    def deposit_eth(self, value):
-
-        if not self.l1_to_l2:
-            raise Exception("Cannot deposit ETH to L1: Instantiate a L2CrossChainMessenger and call withdraw_eth_to()")
-        
-        return self.send_message(self.account.address, b"", 0, value)
-
-    def withdraw_eth(self, value):
-        
-        if self.l1_to_l2:
-            raise Exception("Cannot withdraw ETH to L2: Instantiate a L1CrossChainMessenger and call deposit_eth_to()")
-        
-        l2_to_l1_message_passer = L2ToL1MessagePasser(self.account, network=self.network)
-        
-        return l2_to_l1_message_passer.initiate_withdrawl(self.account.address, 0, b"", value)
-
-    def get_message_status(self, txn_hash):
-        
-        try:
-            txn = self.provider.eth.get_transaction(txn_hash)
-        except:
-            raise Exception(f"Transaction not found: might need to use the {'L2' if self.l1_to_l2 else 'L1'}CrossChainMessenger")
-        
-        txn_receipt = self.provider.eth.get_transaction_receipt(txn_hash)
-
-        if self.l1_to_l2:
-            if txn_receipt is None:
-                return MessageStatus.UNCONFIRMED_L1_TO_L2_MESSAGE
-            else:
-                if txn_receipt.status == 1:
-                    return MessageStatus.RELAYED
-                else:
-                    return MessageStatus.FAILED_L1_TO_L2_MESSAGE
-        else:
-            if txn_receipt is None:
-                return MessageStatus.UNCONFIRMED_L2_TO_L1_MESSAGE
-            else:
-                if txn_receipt.status == 1:
-                    l2_output_oracle = L2OutputOracle(self.account, network=self.network)
-                    latest_block_number = l2_output_oracle.latest_block_number()
-
-                    try:
-                        _, message_hash = to_low_level_message(txn, txn_receipt)
-                    except:
-                        raise Exception("Transaction is not a valid L2 to L1 message")
-
-                    if int(latest_block_number) < int(txn.blockNumber):
-                        return MessageStatus.STATE_ROOT_NOT_PUBLISHED
-                    else:
-                        optimism_portal = OptimismPortal(self.account, network=self.network)
-                        proven = optimism_portal.proven_withdrawls(message_hash)
-                        if proven[-1] == 0:
-                            return MessageStatus.READY_TO_PROVE
-                        else:
-                            current_timestamp = self.provider.eth.get_block(self.provider.eth.block_number).timestamp
-                            if current_timestamp > proven[1] + self.challenge_period:
-                                return MessageStatus.READY_FOR_RELAY
-                            else:
-                                return MessageStatus.IN_CHALLENGE_PERIOD
-                else:
-                    return MessageStatus.FAILED_L2_TO_L1_MESSAGE
-
-    
-    def prove_message(self, l2_txn_hash, account_l1=None):
-
-        if self.l1_to_l2:
-            raise Exception("Cannot prove message on L1CrossChainMessenger: Instantiate a L2CrossChainMessenger")
-        
-        if account_l1 is None:
-            account_l1 = self.account
-        
-        l2_txn = self.provider.eth.get_transaction(l2_txn_hash)
-        l2_txn_receipt = self.provider.eth.get_transaction_receipt(l2_txn_hash)
-
-        withdrawl_message, withrawl_message_hash = to_low_level_message(l2_txn, l2_txn_receipt)
-        proof = self._get_bedrock_message_proof(l2_txn, withrawl_message_hash, account_l1)
-
-        optimism_portal = OptimismPortal(account_l1, network=self.network)
-        return optimism_portal.prove_withdrawl_transaction(tuple(withdrawl_message.values()), proof["l2OutputIndex"], tuple(proof["outputRootProof"].values()), tuple(proof["withdrawalProof"]))
-    
-    def finalize_message(self, l2_txn_hash, account_l1=None):
-        
-        if self.l1_to_l2:
-            raise Exception("Cannot finalize message on L1CrossChainMessenger: Instantiate a L2CrossChainMessenger")
-        
-        if account_l1 is None:
-            account_l1 = self.account
-
-        l2_txn = self.provider.eth.get_transaction(l2_txn_hash)
-        l2_txn_receipt = self.provider.eth.get_transaction_receipt(l2_txn_hash)
-
-        withdrawl_message, withrawl_message_hash = to_low_level_message(l2_txn, l2_txn_receipt)
-        
-        optimism_portal = OptimismPortal(self.account, network=self.network)
-        return optimism_portal.finalize_withdrawl_transaction(tuple(withdrawl_message.values()))
-
-
-    def _get_bedrock_message_proof(self, txn, withdrawl_hash, account_l1):
-
-        l2_block_number = txn.blockNumber
-
-        l2_output_oracle = L2OutputOracle(account_l1, network=self.network)
-
-        latest_l2_output_index = l2_output_oracle.latest_output_index()
-        output_root, timestamp, l2_block_number = l2_output_oracle.get_l2_output(latest_l2_output_index)
-
-        message_slot = hash_message_hash(withdrawl_hash)
-
-        state_trie_proof = make_state_trie_proof(self.provider, l2_block_number, L2_TO_L1_MESSAGE_PASSER, message_slot)
-
-        block = self.provider.eth.get_block(l2_block_number)
-        
-        return {
-            "outputRootProof": {
-                "version": OUTPUT_ROOT_PROOF_VERSION,
-                "stateRoot": block.stateRoot.hex(),
-                "messagePasserStorageRoot": state_trie_proof["storage_root"].hex(),
-                "latestBlockhash": block.hash.hex(),
-            },
-            "withdrawalProof": [el.hex() for el in state_trie_proof["storage_proof"]],
-            "l2OutputIndex": latest_l2_output_index,
-        }
 
     
 class L2OutputOracle():
