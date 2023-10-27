@@ -110,9 +110,6 @@ class StandardBridge(Contract):
             self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("L1_STANDARD_BRIDGE"))
         else:
             self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("L2_STANDARD_BRIDGE"))
-
-    def bridge_eth():
-        pass
     
     def deposit_eth_to(self, to, gas_limit, extra_data, value):
         
@@ -125,8 +122,8 @@ class StandardBridge(Contract):
 
         return self.sign_and_broadcast(deposit_eth_to_tx)
 
-    def bridge_erc20():
-        pass
+    def deposit_erc20():
+        raise NotImplementedError
 
     def withdraw_eth_to(self, to, amount, gas_limit, extra_data):
         
@@ -139,8 +136,8 @@ class StandardBridge(Contract):
 
         return self.sign_and_broadcast(withdraw_eth_to_tx)
 
-    def bridge_erc20_to():
-        pass
+    def withdraw_erc20_to():
+        raise NotImplementedError
 
 class CrossChainMessengerContract(Contract):
 
