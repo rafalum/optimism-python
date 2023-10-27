@@ -10,3 +10,37 @@ This library is a Python implementation of the [OP-Stack SDK](https://sdk.optimi
 - providing easy access to the OP-Stack contracts
 - bridging of assets from L1 to L2 (deposits) and vice-versa (withdrawls)
 - creating withdrawl proofs
+
+## Getting started
+
+### Installation
+
+```bash
+pip install optimism-python
+```
+
+### Deposit ETH to L2
+
+```python
+from web3 import Web3
+from optimism import CrossChainMessenger
+
+# Create a node provider for each chain
+provider_l1 = Web3.HTTPProvider("https://eth-mainnet.g.alchemy.com/v2/<your-alchemy-key>")
+provider_l2 = Web3.HTTPProvider("https://optimism-mainnet.g.alchemy.com/v2/<your-alchemy-key>")
+
+# Specify an account for each chain (can be the same)
+account_l1 = provider_l1.eth.account.from_key("<your-private-key>")
+account_l2 = provider_l2.eth.account.from_key("<your-private-key>")
+
+# Create a messenger instance
+messenger = CrossChainMessenger(l1_chain_id=1,          # Ethereum Mainnet
+                                l2_chain_id=10,         # Optimism Mainnet
+                                account_l1=account_l1, 
+                                account_l2=account_l2,
+                                provider_l1=provider_l1,
+                                provider_l2=provider_l2)
+
+# Deposit 1 ETH to L2
+messenger.deposit_eth(10**18)
+```
