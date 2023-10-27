@@ -1,8 +1,5 @@
 import os
-import math
 import json
-import sha3
-import numpy as np
 
 from web3 import Web3
 from dotenv import load_dotenv
