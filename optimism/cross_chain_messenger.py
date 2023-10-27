@@ -44,7 +44,55 @@ class CrossChainMessenger():
         l2_to_l1_message_passer = L2ToL1MessagePasser(self.account_l2, provider=self.provider_l2, network=self.network)
         
         return l2_to_l1_message_passer.initiate_withdrawl(self.account_l2.address, 0, b"", value)
+    
+    def prove_message(self, l2_txn_hash):
+        
+        l2_txn = self.provider_l2.eth.get_transaction(l2_txn_hash)
+        l2_txn_receipt = self.provider_l2.eth.get_transaction_receipt(l2_txn_hash)
 
+        withdrawl_message, withrawl_message_hash = to_low_level_message(l2_txn, l2_txn_receipt)
+        proof = self.get_bedrock_message_proof(l2_txn, withrawl_message_hash)
+
+        optimism_portal = OptimismPortal(self.account_l1, provider=self.provider_l1, network=self.network)
+        return optimism_portal.prove_withdrawl_transaction(tuple(withdrawl_message.values()), proof["l2OutputIndex"], tuple(proof["outputRootProof"].values()), tuple(proof["withdrawalProof"]))
+    
+    def finalize_message(self, l2_txn_hash):
+
+        l2_txn = self.provider_l2.eth.get_transaction(l2_txn_hash)
+        l2_txn_receipt = self.provider_l2.eth.get_transaction_receipt(l2_txn_hash)
+
+        withdrawl_message, withrawl_message_hash = to_low_level_message(l2_txn, l2_txn_receipt)
+        
+        optimism_portal = OptimismPortal(self.account_l1, network=self.network)
+        return optimism_portal.finalize_withdrawl_transaction(tuple(withdrawl_message.values()))
+
+
+    def get_bedrock_message_proof(self, txn, withdrawl_hash):
+
+        l2_block_number = txn.blockNumber
+
+        l2_output_oracle = L2OutputOracle(self.account_l1, network=self.network)
+
+        latest_l2_output_index = l2_output_oracle.latest_output_index()
+        output_root, timestamp, l2_block_number = l2_output_oracle.get_l2_output(latest_l2_output_index)
+
+        message_slot = hash_message_hash(withdrawl_hash)
+
+        state_trie_proof = make_state_trie_proof(self.provider_l2, l2_block_number, L2_TO_L1_MESSAGE_PASSER, message_slot)
+
+        block = self.provider_l2.eth.get_block(l2_block_number)
+        
+        return {
+            "outputRootProof": {
+                "version": OUTPUT_ROOT_PROOF_VERSION,
+                "stateRoot": block.stateRoot.hex(),
+                "messagePasserStorageRoot": state_trie_proof["storage_root"].hex(),
+                "latestBlockhash": block.hash.hex(),
+            },
+            "withdrawalProof": [el.hex() for el in state_trie_proof["storage_proof"]],
+            "l2OutputIndex": latest_l2_output_index,
+        }
+    
     def get_message_status(self, txn_hash):
 
         l1_to_l2 = True
@@ -93,52 +141,33 @@ class CrossChainMessenger():
                                 return MessageStatus.IN_CHALLENGE_PERIOD
                 else:
                     return MessageStatus.FAILED_L2_TO_L1_MESSAGE
-
     
-    def prove_message(self, l2_txn_hash):
-        
-        l2_txn = self.provider_l2.eth.get_transaction(l2_txn_hash)
-        l2_txn_receipt = self.provider_l2.eth.get_transaction_receipt(l2_txn_hash)
-
-        withdrawl_message, withrawl_message_hash = to_low_level_message(l2_txn, l2_txn_receipt)
-        proof = self._get_bedrock_message_proof(l2_txn, withrawl_message_hash)
-
-        optimism_portal = OptimismPortal(self.account_l1, provider=self.provider_l1, network=self.network)
-        return optimism_portal.prove_withdrawl_transaction(tuple(withdrawl_message.values()), proof["l2OutputIndex"], tuple(proof["outputRootProof"].values()), tuple(proof["withdrawalProof"]))
+    def get_deposits_by_address(self, address, from_block=0, to_block="latest"):
+        raise NotImplementedError
     
-    def finalize_message(self, l2_txn_hash):
-
-        l2_txn = self.provider_l2.eth.get_transaction(l2_txn_hash)
-        l2_txn_receipt = self.provider_l2.eth.get_transaction_receipt(l2_txn_hash)
-
-        withdrawl_message, withrawl_message_hash = to_low_level_message(l2_txn, l2_txn_receipt)
-        
-        optimism_portal = OptimismPortal(self.account_l1, network=self.network)
-        return optimism_portal.finalize_withdrawl_transaction(tuple(withdrawl_message.values()))
-
-
-    def _get_bedrock_message_proof(self, txn, withdrawl_hash):
-
-        l2_block_number = txn.blockNumber
-
-        l2_output_oracle = L2OutputOracle(self.account_l1, network=self.network)
-
-        latest_l2_output_index = l2_output_oracle.latest_output_index()
-        output_root, timestamp, l2_block_number = l2_output_oracle.get_l2_output(latest_l2_output_index)
-
-        message_slot = hash_message_hash(withdrawl_hash)
-
-        state_trie_proof = make_state_trie_proof(self.provider_l2, l2_block_number, L2_TO_L1_MESSAGE_PASSER, message_slot)
-
-        block = self.provider_l2.eth.get_block(l2_block_number)
-        
-        return {
-            "outputRootProof": {
-                "version": OUTPUT_ROOT_PROOF_VERSION,
-                "stateRoot": block.stateRoot.hex(),
-                "messagePasserStorageRoot": state_trie_proof["storage_root"].hex(),
-                "latestBlockhash": block.hash.hex(),
-            },
-            "withdrawalProof": [el.hex() for el in state_trie_proof["storage_proof"]],
-            "l2OutputIndex": latest_l2_output_index,
-        }
+    def get_withdrawls_by_address(self, address, from_block=0, to_block="latest"):
+        raise NotImplementedError
+    
+    def estimate_l2_gas_limit(self, message):
+        raise NotImplementedError
+    
+    def estimate_message_wait_time_seconds(self, message):
+        raise NotImplementedError
+    
+    def get_challenge_period_seconds(self):
+        raise NotImplementedError
+    
+    def get_proven_withdrawl(self):
+        raise NotImplementedError
+    
+    def get_message_state_root(self):
+        raise NotImplementedError
+    
+    def get_state_batch_appended_event_by_batch_index(self):
+        raise NotImplementedError
+    
+    def get_state_batch_appended_event_by_transaction_index(self):
+        raise NotImplementedError
+    
+    def get_state_root_batch_by_transaction_index(self):
+        raise NotImplementedError
