@@ -5,6 +5,7 @@ from web3 import Web3
 from dotenv import load_dotenv
 
 from .constants import MESSAGE_PASSED_ID
+from .types import MessagePassedEvent, StateTrieProof
 
 load_dotenv()
 
@@ -67,22 +68,22 @@ def to_low_level_message(txn, txn_receipt):
 
     message_length = int(message_passed_log.data[128:160].hex(), 16)
 
-    return {
-        "messageNonce": int(message_passed_log.topics[1].hex(), 16),
-        "sender": log_to_address(message_passed_log.topics[2].hex()),
-        "target": log_to_address(message_passed_log.topics[3].hex()),
-        "value": int(message_passed_log.data[:32].hex(), 16),
-        "minGasLimit": int(message_passed_log.data[32:64].hex(), 16),
-        "message": message_passed_log.data[160:160 + message_length].hex()
-    }, message_passed_log.data[96:128].hex()
+    return MessagePassedEvent(
+        message_nonce=int(message_passed_log.topics[1].hex(), 16),
+        sender=log_to_address(message_passed_log.topics[2].hex()),
+        target=log_to_address(message_passed_log.topics[3].hex()),
+        value=int(message_passed_log.data[:32].hex(), 16),
+        min_gas_limit=int(message_passed_log.data[32:64].hex(), 16),
+        message=message_passed_log.data[160:160 + message_length].hex()
+    ), message_passed_log.data[96:128].hex()
 
 def make_state_trie_proof(provider, block_number, address, slot):
 
     proof = provider.eth.get_proof(address, [slot], block_identifier=block_number)
 
-    return {
-        'account_proof': proof.accountProof,
-        'storage_proof': proof.storageProof[0].proof,
-        'storage_value': proof.storageProof[0].value,
-        'storage_root': proof.storageHash
-    }
+    return StateTrieProof(
+        account_proof=proof.accountProof,
+        storage_proof=proof.storageProof[0].proof,
+        storage_value=proof.storageProof[0].value,
+        storage_root=proof.storageHash
+    )

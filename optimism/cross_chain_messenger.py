@@ -1,7 +1,7 @@
 from .addresses import *
 from .constants import OUTPUT_ROOT_PROOF_VERSION, CHALLENGE_PERIOD_MAINNET, CHALLENGE_PERIOD_TESTNET
 
-from .types import MessageStatus
+from .types import MessageStatus, OutputRootProof, BedrockMessageProof
 from .utils import get_provider, get_account, to_low_level_message, make_state_trie_proof, hash_message_hash
 from .contracts import L2ToL1MessagePasser, L2OutputOracle, OptimismPortal, CrossChainMessengerContract
 
@@ -51,10 +51,10 @@ class CrossChainMessenger():
         l2_txn_receipt = self.provider_l2.eth.get_transaction_receipt(l2_txn_hash)
 
         withdrawl_message, withrawl_message_hash = to_low_level_message(l2_txn, l2_txn_receipt)
-        proof = self.get_bedrock_message_proof(l2_txn, withrawl_message_hash)
+        message_proof = self.get_bedrock_message_proof(l2_txn, withrawl_message_hash)
 
         optimism_portal = OptimismPortal(self.account_l1, provider=self.provider_l1, network=self.network)
-        return optimism_portal.prove_withdrawl_transaction(tuple(withdrawl_message.values()), proof["l2OutputIndex"], tuple(proof["outputRootProof"].values()), tuple(proof["withdrawalProof"]))
+        return optimism_portal.prove_withdrawl_transaction(withdrawl_message.values(), message_proof.get_l2_output_index(), message_proof.get_output_root_proof(), message_proof.get_withdrawl_proof())
     
     def finalize_message(self, l2_txn_hash):
 
@@ -81,17 +81,17 @@ class CrossChainMessenger():
         state_trie_proof = make_state_trie_proof(self.provider_l2, l2_block_number, L2_TO_L1_MESSAGE_PASSER, message_slot)
 
         block = self.provider_l2.eth.get_block(l2_block_number)
+
+        output_root_proof = OutputRootProof(version=OUTPUT_ROOT_PROOF_VERSION,
+                                            state_root=block.stateRoot.hex(),
+                                            message_passer_storage_root=state_trie_proof.storage_root.hex(),
+                                            latest_blockhash=block.hash.hex())
         
-        return {
-            "outputRootProof": {
-                "version": OUTPUT_ROOT_PROOF_VERSION,
-                "stateRoot": block.stateRoot.hex(),
-                "messagePasserStorageRoot": state_trie_proof["storage_root"].hex(),
-                "latestBlockhash": block.hash.hex(),
-            },
-            "withdrawalProof": [el.hex() for el in state_trie_proof["storage_proof"]],
-            "l2OutputIndex": latest_l2_output_index,
-        }
+        bedrock_message_proof = BedrockMessageProof(output_root_proof=output_root_proof,
+                                                    withdrawl_proof=[el.hex() for el in state_trie_proof.storage_proof],
+                                                    l2_output_index=latest_l2_output_index)
+        
+        return bedrock_message_proof
     
     def get_message_status(self, txn_hash):
 
