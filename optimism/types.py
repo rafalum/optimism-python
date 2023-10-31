@@ -42,3 +42,45 @@ class MessagePassedEvent():
     def values(self):
 
         return (self.message_nonce, self.sender, self.target, self.value, self.min_gas_limit, self.message)
+
+class OutputRootProof():
+
+    def __init__(self, version, state_root, message_passer_storage_root, latest_blockhash):
+
+        self.version = version
+        self.state_root = state_root
+        self.message_passer_storage_root = message_passer_storage_root
+        self.latest_blockhash = latest_blockhash
+
+    def __str__(self):
+
+        return f"OutputRootProof(version={self.version}, state_root={self.state_root}, message_passer_storage_root={self.message_passer_storage_root}, latest_blockhash={self.latest_blockhash})"
+    
+    def values(self):
+
+        return (self.version, self.state_root, self.message_passer_storage_root, self.latest_blockhash)
+
+
+class BedrockMessageProof():
+
+    def __init__(self, output_root_proof, withdrawl_proof, l2_output_index):
+
+        self.output_root_proof = output_root_proof
+        self.withdrawl_proof = withdrawl_proof
+        self.l2_output_index = l2_output_index
+
+    def __str__(self):
+            
+        return f"BedrockMessageProof(output_root_proof={self.output_root_proof}, withdrawl_proof={self.withdrawl_proof}, l2_output_index={self.l2_output_index})"
+    
+    def get_l2_output_index(self):
+
+        return self.l2_output_index
+    
+    def get_output_root_proof(self):
+
+        return self.output_root_proof.values()
+    
+    def get_withdrawl_proof(self):
+
+        return tuple(self.withdrawl_proof)
