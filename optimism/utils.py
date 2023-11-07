@@ -4,6 +4,7 @@ import json
 from web3 import Web3
 from dotenv import load_dotenv
 
+from .addresses import l1_addresses
 from .constants import MESSAGE_PASSED_ID
 from .types import MessagePassedEvent, StateTrieProof
 
@@ -87,3 +88,13 @@ def make_state_trie_proof(provider, block_number, address, slot):
         storage_value=proof.storageProof[0].value,
         storage_root=proof.storageHash
     )
+
+def is_network_supported(network):
+
+    networks = l1_addresses.keys()
+
+    for net in networks:
+        if network in net:
+            return True
+    
+    return False
