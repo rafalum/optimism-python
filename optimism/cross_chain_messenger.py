@@ -37,7 +37,7 @@ class CrossChainMessenger():
 
     def deposit_eth(self, value):
         
-        return self.l1_cross_chain_messenger.send_message(self.account_l1.address, b"", 0, value)
+        return self.l1_cross_chain_messenger.send_message(self.account_l2.address, b"", 0, value)
 
     def withdraw_eth(self, value):
         
