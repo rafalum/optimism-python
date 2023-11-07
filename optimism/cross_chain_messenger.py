@@ -1,4 +1,4 @@
-from .addresses import *
+from .addresses import l2_addresses
 from .constants import OUTPUT_ROOT_PROOF_VERSION, CHALLENGE_PERIOD_MAINNET, CHALLENGE_PERIOD_TESTNET
 
 from .types import MessageStatus, OutputRootProof, BedrockMessageProof
@@ -78,7 +78,7 @@ class CrossChainMessenger():
 
         message_slot = hash_message_hash(withdrawl_hash)
 
-        state_trie_proof = make_state_trie_proof(self.provider_l2, l2_block_number, L2_TO_L1_MESSAGE_PASSER, message_slot)
+        state_trie_proof = make_state_trie_proof(self.provider_l2, l2_block_number, l2_addresses["l2_" + self.network]["L2_TO_L1_MESSAGE_PASSER"], message_slot)
 
         block = self.provider_l2.eth.get_block(l2_block_number)
 

@@ -1,9 +1,9 @@
 from web3 import Web3
 
-from .addresses import *
+from .addresses import l1_addresses, l2_addresses
 
 from .types import MessageStatus
-from .utils import get_provider, load_abi, determine_direction
+from .utils import get_provider, load_abi, determine_direction, is_network_supported
 
 class Contract():
 
@@ -26,12 +26,10 @@ class OptimismPortal(Contract):
         else:
             self.provider = provider
 
-        if network == "mainnet":
-            self.address = OPTIMISM_PORTAL
-        elif network == "goerli":
-            self.address = OPTIMISM_PORTAL_GOERLI
-        elif network == "sepolia":
-            self.address = OPTIMISM_PORTAL_SEPOLIA
+        if is_network_supported(network) is False:
+            raise Exception(f"Network {network} not supported: add it to the addresses.py file")
+
+        self.address = l1_addresses["l1_" + network]["OPTIMISM_PORTAL"]
         
         self.account = account
         self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("OPTIMISM_PORTAL"))
@@ -86,20 +84,13 @@ class StandardBridge(Contract):
         else:
             self.provider = provider
 
+        if is_network_supported(network) is False:
+            raise Exception(f"Network {network} not supported: add it to the addresses.py file")
+
         if l1_to_l2:
-            if network == "mainnet":
-                self.address = L1_STANDARD_BRIDGE
-            elif network == "goerli":
-                self.address = L1_STANDARD_BRIDGE_GOERLI
-            elif network == "sepolia":
-                self.address = L1_STANDARD_BRIDGE_SEPOLIA
+            self.address = l1_addresses["l1_" + network]["L1_STANDARD_BRIDGE"]
         else:
-            if network == "mainnet":
-                self.address = L2_STANDARD_BRIDGE
-            elif network == "goerli":
-                self.address = L2_STANDARD_BRIDGE_GOERLI
-            elif network == "sepolia":
-                self.address = L2_STANDARD_BRIDGE_SEPOLIA
+            self.address = l2_addresses["l2_" + network]["L2_STANDARD_BRIDGE"]
         
         self.from_chain_id = from_chain_id
         self.to_chain_id = to_chain_id
@@ -151,20 +142,13 @@ class CrossChainMessengerContract(Contract):
         else:
             self.provider = provider
 
+        if is_network_supported(network) is False:
+            raise Exception(f"Network {network} not supported: add it to the addresses.py file")
+
         if self.l1_to_l2:
-            if network == "mainnet":
-                self.address = L1_CROSS_CHAIN_MESSENGER
-            elif network == "goerli":
-                self.address = L1_CROSS_CHAIN_MESSENGER_GOERLI
-            elif network == "sepolia":
-                self.address = L1_CROSS_CHAIN_MESSENGER_SEPOLIA
+            self.address = l1_addresses["l1_" + network]["L1_CROSS_CHAIN_MESSENGER"]
         else:
-            if network == "mainnet":
-                self.address = L2_CROSS_CHAIN_MESSENGER
-            elif network == "goerli":
-                self.address = L2_CROSS_CHAIN_MESSENGER_GOERLI
-            elif network == "sepolia":
-                self.address = L2_CROSS_CHAIN_MESSENGER_SEPOLIA
+            self.address = l2_addresses["l2_" + network]["L2_CROSS_CHAIN_MESSENGER"]
         
         self.from_chain_id = from_chain_id
         self.to_chain_id = to_chain_id
@@ -203,12 +187,10 @@ class L2OutputOracle():
         else:
             self.provider = provider
 
-        if network == "mainnet":
-            self.address = L2_OUTPUT_ORACLE
-        elif network == "goerli":
-            self.address = L2_OUTPUT_ORACLE_GOERLI
-        elif network == "sepolia":
-            self.address = L2_OUTPUT_ORACLE_SEPOLIA
+        if is_network_supported(network) is False:
+            raise Exception(f"Network {network} not supported: add it to the addresses.py file")
+
+        self.address = l1_addresses["l1_" + network]["L2_OUTPUT_ORACLE"]
 
         self.account = account
 
@@ -251,12 +233,7 @@ class L2ToL1MessagePasser(Contract):
         else:
             self.provider = provider
 
-        if network == "mainnet":
-            self.address = L2_TO_L1_MESSAGE_PASSER
-        elif network == "goerli":
-            self.address = L2_TO_L1_MESSAGE_PASSER_GOERLI
-        elif network == "sepolia":
-            self.address = L2_TO_L1_MESSAGE_PASSER_SEPOLIA
+        self.address = l2_addresses["l2_" + network]["L2_TO_L1_MESSAGE_PASSER"]
 
         self.account = account
 
