@@ -63,7 +63,7 @@ class CrossChainMessenger():
 
         withdrawl_message, withrawl_message_hash = to_low_level_message(l2_txn, l2_txn_receipt)
         
-        optimism_portal = OptimismPortal(self.account_l1, network=self.network)
+        optimism_portal = OptimismPortal(self.account_l1, provider=self.provider_l1, network=self.network)
         return optimism_portal.finalize_withdrawl_transaction(tuple(withdrawl_message.values()))
 
 
