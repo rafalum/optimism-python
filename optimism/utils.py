@@ -14,18 +14,20 @@ def get_env_variable(var_name):
     return os.environ.get(var_name)
 
 def get_provider(l2=False, network="mainnet"):
-    if l2:
-        provider_url = get_env_variable("PROVIDER_L2" + ("_" + str.upper(network) if network != "mainnet" else ""))
-    else:
-        provider_url = get_env_variable("PROVIDER_L1" + ("_" + str.upper(network) if network != "mainnet" else ""))
+
+    if is_network_supported(network) is False:
+        raise Exception(f"Network {network} not supported: add it to the addresses.py file")
+    
+    provider_url = get_env_variable(str.upper(network) + "PROVIDER_URL " + ("_L2" if l2 else "_L1"))
 
     return Web3(Web3.HTTPProvider(provider_url))
 
 def get_account(l2=False, network="mainnet"):
-    if l2:
-        pk = get_env_variable("PRIVATE_KEY_L2")
-    else:
-        pk = get_env_variable("PRIVATE_KEY_L1")
+
+    if is_network_supported(network) is False:
+        raise Exception(f"Network {network} not supported: add it to the addresses.py file")
+    
+    pk = get_env_variable("PRIVATE_KEY" + ("_L2" if l2 else "_L1"))
 
     return get_provider(l2=l2, network=network).eth.account.from_key(pk)
 
