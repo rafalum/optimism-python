@@ -4,7 +4,6 @@ import json
 from web3 import Web3
 from dotenv import load_dotenv
 
-from .addresses import l1_addresses
 from .constants import MESSAGE_PASSED_ID
 from .types import MessagePassedEvent, StateTrieProof
 
@@ -93,6 +92,7 @@ def make_state_trie_proof(provider, block_number, address, slot):
 
 def is_network_supported(network):
 
+    l1_addresses = read_addresses("l1")
     networks = l1_addresses.keys()
 
     for net in networks:
@@ -100,3 +100,16 @@ def is_network_supported(network):
             return True
     
     return False
+
+def read_addresses(layer):
+
+    path = f"{os.path.dirname(os.path.abspath(__file__))}"
+    with open(os.path.abspath(path + f"/addresses.json")) as f:
+        addresses: dict = json.load(f)
+
+    if layer == "l1":
+        return addresses["l1_addresses"]
+    elif layer == "l2":
+        return addresses["l2_addresses"]
+    else:
+        raise Exception("Layer must be l1 or l2")
