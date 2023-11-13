@@ -62,7 +62,7 @@ class TestDeposit(unittest.TestCase, TestUtil):
 
         self.account = self.l1_provider.eth.account.from_key("0x" + "1" * 64)
 
-        self.fund_account(self.account, 10**18)
+        self.fund_account(self.account, 10**18, layer="l1")
 
 
     

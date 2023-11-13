@@ -5,19 +5,26 @@ class TestUtil():
     def __init__(self) -> None:
         pass
 
-    def fund_account(self, account, value):
+    def fund_account(self, account, value, layer="l1"):
+
+        if layer == "l1":
+            provider = self.l1_provider
+        elif layer == "l2":
+            provider = self.l2_provider
+        else:
+            raise Exception(f"Invalid layer: {layer}")
         
         tx = {
-            'nonce': self.l1_provider.eth.get_transaction_count(self.faucet.address),
+            'nonce': provider.eth.get_transaction_count(self.faucet.address),
             'to': account.address,
             'value': value,
             'gas': 50000, 
-            'gasPrice': self.l1_provider.eth.gas_price
+            'gasPrice': provider.eth.gas_price
         }
 
-        # Sign the transaction
-        signed_tx = self.l1_provider.eth.account.sign_transaction(tx, self.faucet.key)
-        tx_hash = self.l1_provider.eth.send_raw_transaction(signed_tx.rawTransaction)
-        receipt = self.l1_provider.eth.wait_for_transaction_receipt(tx_hash)
+        # Sign and broadcast the transaction
+        signed_tx = provider.eth.account.sign_transaction(tx, self.faucet.key)
+        tx_hash = provider.eth.send_raw_transaction(signed_tx.rawTransaction)
+        receipt = provider.eth.wait_for_transaction_receipt(tx_hash)
 
         return tx_hash.hex(), receipt
