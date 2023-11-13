@@ -17,7 +17,7 @@ class TestDeposit(unittest.TestCase, TestUtil):
 
     def setUp(self) -> None:
 
-        self.node_process = subprocess.Popen(["start_devnet", "dev"])
+        self.node_process = subprocess.Popen(["start_devnet", "devnode"])
 
         if self.node_process.returncode == None:
             print("Local dev net started successfully")
@@ -91,8 +91,6 @@ class TestDeposit(unittest.TestCase, TestUtil):
     
     def testDepositETH(self):
 
-        print("#############################Starting test")
-
         l1_chain_id = 900
         l2_chain_id = 901
 
@@ -105,8 +103,6 @@ class TestDeposit(unittest.TestCase, TestUtil):
         self.assertEqual(balance_l2, 0)
 
         deposit_txn_hash, deposit_txn_receipt = cross_chain_messenger.deposit_eth(5*10**17)
-
-        print("#############################Deposit")
 
         time.sleep(30)
 
