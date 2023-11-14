@@ -17,7 +17,7 @@ def get_provider(l2=False, network="mainnet"):
     if is_network_supported(network) is False:
         raise Exception(f"Network {network} not supported: add it to the addresses.py file")
     
-    provider_url = get_env_variable(str.upper(network) + "PROVIDER_URL " + ("_L2" if l2 else "_L1"))
+    provider_url = get_env_variable(str.upper(network) + "_PROVIDER_URL_" + ("L2" if l2 else "L1"))
 
     return Web3(Web3.HTTPProvider(provider_url))
 
@@ -26,7 +26,7 @@ def get_account(l2=False, network="mainnet"):
     if is_network_supported(network) is False:
         raise Exception(f"Network {network} not supported: add it to the addresses.py file")
     
-    pk = get_env_variable("PRIVATE_KEY" + ("_L2" if l2 else "_L1"))
+    pk = get_env_variable("PRIVATE_KEY_" + ("L2" if l2 else "L1"))
 
     return get_provider(l2=l2, network=network).eth.account.from_key(pk)
 
