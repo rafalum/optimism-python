@@ -46,7 +46,8 @@ class TestDeposit(unittest.TestCase, TestUtil):
             with open("optimism/addresses.json", 'w') as json_file:
                 json.dump(addresses, json_file, indent=4)
 
-        subprocess.Popen(["sshpass", "-p", "sandbox", "ssh", "-o", "IdentitiesOnly=yes", "-t", "sandbox@127.0.0.1", "-p", "10022", f"export L2OO_ADDRESS={l1_addresses_devnet['L2_OUTPUT_ORACLE']} && cd ~/optimism && python3 bedrock-devnet/main.py"])
+        subprocess.Popen(["sshpass", "-p", "sandbox", "ssh", "-o", "IdentitiesOnly=yes", "-t", "sandbox@127.0.0.1", "-p", "10022", f"echo 'export L2OO_ADDRESS={l1_addresses_devnet['L2_OUTPUT_ORACLE']}' >> '/home/sandbox/.bashrc'"])
+        subprocess.Popen(["sshpass", "-p", "sandbox", "ssh", "-o", "IdentitiesOnly=yes", "-t", "sandbox@127.0.0.1", "-p", "10022", f"cd ~/optimism && python3 bedrock-devnet/main.py"])
 
         time.sleep(20)
 
