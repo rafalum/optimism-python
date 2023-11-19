@@ -41,6 +41,9 @@ class CrossChainMessenger():
     def deposit_erc20(self, token_address, value):
         pass
 
+    def approve_erc20(self, token_address_l1, token_address_l2, value):
+        pass
+
     def withdraw_eth(self, value):
         
         l2_to_l1_message_passer = L2ToL1MessagePasser(self.account_l2, provider=self.provider_l2, network=self.network)
