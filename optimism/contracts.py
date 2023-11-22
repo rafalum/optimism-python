@@ -154,9 +154,30 @@ class StandardBridge(Contract):
         })
 
         return self.sign_and_broadcast(withdraw_eth_to_tx)
+    
+    def bridge_erc20(self, l1_token_address, l2_token_address, value, gas_limit, extra_data):
 
-    def withdraw_erc20_to():
-        raise NotImplementedError
+        if self.l1_to_l2:
+            raise Exception("This method can only be called on a L2 to L1 Bridge")
+        
+        withdraw_erc20_tx = self.contract.functions.bridgeERC20(l2_token_address, l1_token_address, value, gas_limit, extra_data).build_transaction({
+            "from": self.account.address,
+            "gas": 500000,
+            "nonce": self.provider.eth.get_transaction_count(self.account.address)
+        })
+
+        return self.sign_and_broadcast(withdraw_erc20_tx)
+
+    def bridge_erc20_to(self, l1_token_address, l2_token_address, to, value, gas_limit, extra_data):
+        
+        if self.l1_to_l2:
+            raise Exception("This method can only be called on a L2 to L1 Bridge")
+        
+        withdraw_erc20_to_tx = self.contract.functions.bridgeERC20To(l2_token_address, l1_token_address, to, value, gas_limit, extra_data).build_transaction({
+            "from": self.account.address,
+            "gas": 500000,
+            "nonce": self.provider.eth.get_transaction_count(self.account.address)
+        })
 
 class CrossChainMessengerContract(Contract):
 
