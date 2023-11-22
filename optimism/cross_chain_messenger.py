@@ -46,7 +46,7 @@ class CrossChainMessenger():
         if not self._supports_token_pair(token_address_l1, token_address_l2):
             raise Exception("Token pair not supported")
         
-        return self.l1_bridge.deposit_erc20(token_address_l1, token_address_l2, value, 200000, b"")
+        return self.l1_bridge.deposit_erc20(token_address_l1, token_address_l2, value, 0, b"")
     
     def deposit_erc20_to(self, token_address_l1, token_address_l2, to, value):
         
@@ -80,8 +80,19 @@ class CrossChainMessenger():
         
         return l2_to_l1_message_passer.initiate_withdrawl(self.account_l1.address, 0, b"", value)
     
-    def withdraw_erc20(self, token_address, value):
-        pass
+    def withdraw_erc20(self, token_address_l1, token_address_l2, value):
+
+        if not self._supports_token_pair(token_address_l1, token_address_l2):
+            raise Exception("Token pair not supported")
+        
+        return self.l2_bridge.bridge_erc20(token_address_l1, token_address_l2, value, 0, b"")
+    
+    def withdraw_erc20_to(self, token_address_l1, token_address_l2, to, value):
+
+        if not self._supports_token_pair(token_address_l1, token_address_l2):
+            raise Exception("Token pair not supported")
+            
+        return self.l2_bridge.bridge_erc20_to(token_address_l1, token_address_l2, to, value, 0, b"")
     
     def prove_message(self, l2_txn_hash):
         
