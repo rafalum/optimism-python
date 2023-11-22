@@ -1,8 +1,8 @@
 from .constants import OUTPUT_ROOT_PROOF_VERSION, CHALLENGE_PERIOD_MAINNET, CHALLENGE_PERIOD_TESTNET
 
 from .types import MessageStatus, OutputRootProof, BedrockMessageProof
-from .utils import get_provider, get_account, to_low_level_message, make_state_trie_proof, hash_message_hash, read_addresses
-from .contracts import L2ToL1MessagePasser, L2OutputOracle, OptimismPortal, CrossChainMessengerContract
+from .utils import get_provider, get_account, to_low_level_message, make_state_trie_proof, hash_message_hash, read_addresses, load_abi
+from .contracts import L2ToL1MessagePasser, L2OutputOracle, OptimismPortal, CrossChainMessengerContract, StandardBridge
 
 class CrossChainMessenger():
 
@@ -34,15 +34,45 @@ class CrossChainMessenger():
         self.l1_cross_chain_messenger = CrossChainMessengerContract(account_l1, chain_id_l1, chain_id_l2, provider=provider_l1, network=network)
         self.l2_cross_chain_messenger = CrossChainMessengerContract(account_l2, chain_id_l2, chain_id_l1, provider=provider_l2, network=network)
 
+        self.l1_bridge = StandardBridge(account_l1, from_chain_id=chain_id_l1, to_chain_id=chain_id_l2, provider=provider_l1, network=network)
+        self.l2_bridge = StandardBridge(account_l2, from_chain_id=chain_id_l2, to_chain_id=chain_id_l1, provider=provider_l2, network=network)
+
     def deposit_eth(self, value):
         
         return self.l1_cross_chain_messenger.send_message(self.account_l2.address, b"", 0, value)
     
-    def deposit_erc20(self, token_address, value):
-        pass
+    def deposit_erc20(self, token_address_l1, token_address_l2, value):
+        
+        if not self._supports_token_pair(token_address_l1, token_address_l2):
+            raise Exception("Token pair not supported")
+        
+        return self.l1_bridge.deposit_erc20(token_address_l1, token_address_l2, value, 200000, b"")
+    
+    def deposit_erc20_to(self, token_address_l1, token_address_l2, to, value):
+        
+        if not self._supports_token_pair(token_address_l1, token_address_l2):
+            raise Exception("Token pair not supported")
+        
+        return self.l1_bridge.deposit_erc20_to(token_address_l1, token_address_l2, to, value, 0, b"")
 
     def approve_erc20(self, token_address_l1, token_address_l2, value):
-        pass
+
+        if not self._supports_token_pair(token_address_l1, token_address_l2):
+            raise Exception("Token pair not supported")
+
+        token_contract_l1 = self.provider_l1.eth.contract(address=token_address_l1, abi=load_abi("ERC20"))
+
+        approve_tx = token_contract_l1.functions.approve(self.l1_bridge.address, value).build_transaction({
+            "from": self.account_l1.address,
+            "nonce": self.provider_l1.eth.get_transaction_count(self.account_l1.address)
+        })
+
+        signed_txn = self.provider_l1.eth.account.sign_transaction(approve_tx, self.account_l1.key)
+        txn_hash = self.provider_l1.eth.send_raw_transaction(signed_txn.rawTransaction)
+        txn_receipt = self.provider_l1.eth.wait_for_transaction_receipt(txn_hash)
+
+        return txn_hash.hex(), txn_receipt
+
 
     def withdraw_eth(self, value):
         
@@ -179,3 +209,13 @@ class CrossChainMessenger():
     
     def get_state_root_batch_by_transaction_index(self):
         raise NotImplementedError
+    
+    def _supports_token_pair(self, token_address_l1, token_address_l2):
+        
+        token_contract_l2 = self.provider_l2.eth.contract(address=token_address_l2, abi=load_abi("OPTIMISM_ERC20"))
+        try:
+            l1_token = token_contract_l2.functions.l1Token().call()
+        except:
+            raise Exception(f"Token Contract {token_address_l2} is not an Optimism ERC20")
+        
+        return l1_token == token_address_l1
