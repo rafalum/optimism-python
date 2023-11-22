@@ -74,8 +74,8 @@ class StandardBridge(Contract):
     
     def __init__(self, account, from_chain_id=1, to_chain_id=10, provider=None, network="mainnet"):
         
-        l1_to_l2 = determine_direction(from_chain_id, to_chain_id)
-        l2 = not l1_to_l2
+        self.l1_to_l2 = determine_direction(from_chain_id, to_chain_id)
+        l2 = not self.l1_to_l2
 
         if provider is None:
             self.provider = get_provider(l2=l2, network=network)
@@ -85,7 +85,7 @@ class StandardBridge(Contract):
         if is_network_supported(network) is False:
             raise Exception(f"Network {network} not supported: add it to the addresses.py file")
 
-        if l1_to_l2:
+        if self.l1_to_l2:
             self.address = read_addresses("l1")["l1_" + network]["L1_STANDARD_BRIDGE"]
         else:
             self.address = read_addresses("l2")["l2_" + network]["L2_STANDARD_BRIDGE"]
@@ -95,13 +95,16 @@ class StandardBridge(Contract):
 
         self.account = account
 
-        if l1_to_l2:
+        if self.l1_to_l2:
             self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("L1_STANDARD_BRIDGE"))
         else:
             self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("L2_STANDARD_BRIDGE"))
     
-    def deposit_eth_to(self, to, gas_limit, extra_data, value):
-        
+    def deposit_eth_to(self, to, value, gas_limit, extra_data):
+
+        if not self.l1_to_l2:
+            raise Exception("This method can only be called on a L1 to L2 Bridge")
+
         deposit_eth_to_tx = self.contract.functions.depositETHTo(to, gas_limit, extra_data).build_transaction({
             "from": self.account.address,
             "gas": 500000,
@@ -111,16 +114,43 @@ class StandardBridge(Contract):
 
         return self.sign_and_broadcast(deposit_eth_to_tx)
 
-    def deposit_erc20():
-        raise NotImplementedError
-
-    def withdraw_eth_to(self, to, amount, gas_limit, extra_data):
+    def deposit_erc20(self, l1_token_address, l2_token_address, value, gas_limit, extra_data):
         
-        withdraw_eth_to_tx = self.contract.functions.withdrawTo("0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000", to, amount, gas_limit, extra_data).build_transaction({
+        if not self.l1_to_l2:
+            raise Exception("This method can only be called on a L1 to L2 Bridge")
+        
+        deposit_erc20_tx = self.contract.functions.depositERC20(l1_token_address, l2_token_address, value, gas_limit, extra_data).build_transaction({
+            "from": self.account.address,
+            "gas": 700000,
+            "nonce": self.provider.eth.get_transaction_count(self.account.address)
+        })
+
+        return self.sign_and_broadcast(deposit_erc20_tx)
+        
+    def deposit_erc20_to(self, l1_token_address, l2_token_address, to, value, gas_limit, extra_data):
+        
+        if not self.l1_to_l2:
+            raise Exception("This method can only be called on a L1 to L2 Bridge")
+        
+        deposit_erc20_to_tx = self.contract.functions.depositERC20To(l1_token_address, l2_token_address, to, value, gas_limit, extra_data).build_transaction({
+            "from": self.account.address,
+            "gas": 700000,
+            "nonce": self.provider.eth.get_transaction_count(self.account.address)
+        })
+
+        return self.sign_and_broadcast(deposit_erc20_to_tx)
+        
+
+    def withdraw_eth_to(self, to, value, gas_limit, extra_data):
+
+        if self.l1_to_l2:
+            raise Exception("This method can only be called on a L2 to L1 Bridge")
+        
+        withdraw_eth_to_tx = self.contract.functions.withdrawTo("0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000", to, value, gas_limit, extra_data).build_transaction({
             "from": self.account.address,
             "gas": 500000,
             "nonce": self.provider.eth.get_transaction_count(self.account.address),
-            "value": amount
+            "value": value
         })
 
         return self.sign_and_broadcast(withdraw_eth_to_tx)
