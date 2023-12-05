@@ -38,20 +38,18 @@ class TestDeposit(unittest.TestCase, TestUtil):
         else:
             l1_addresses_devnet = json.loads(output.decode().strip("\r\n").replace("'", "\""))
 
-            with open("optimism/addresses.json", 'r') as file:
+            with open("optimism/config.json", 'r') as file:
                 addresses = json.load(file)
 
-            addresses["l1_addresses"]["l1_devnet"] = l1_addresses_devnet
+            addresses["900"]["901"]["l1_addresses"] = l1_addresses_devnet
 
-            with open("optimism/addresses.json", 'w') as json_file:
+            with open("optimism/config.json", 'w') as json_file:
                 json.dump(addresses, json_file, indent=4)
 
         subprocess.Popen(["sshpass", "-p", "sandbox", "ssh", "-o", "IdentitiesOnly=yes", "-t", "sandbox@127.0.0.1", "-p", "10022", f"echo 'export L2OO_ADDRESS={l1_addresses_devnet['L2_OUTPUT_ORACLE']}' >> '/home/sandbox/.bashrc'"])
         subprocess.Popen(["sshpass", "-p", "sandbox", "ssh", "-o", "IdentitiesOnly=yes", "-t", "sandbox@127.0.0.1", "-p", "10022", f"cd ~/optimism && python3 bedrock-devnet/main.py"])
 
         time.sleep(20)
-
-        self.network = "devnet"
 
         self.l1_provider = Web3(Web3.HTTPProvider("http://127.0.0.1:8545"))
         self.l2_provider = Web3(Web3.HTTPProvider("http://127.0.0.1:9545"))
@@ -95,7 +93,7 @@ class TestDeposit(unittest.TestCase, TestUtil):
         l1_chain_id = 900
         l2_chain_id = 901
 
-        cross_chain_messenger = CrossChainMessenger(l1_chain_id, l2_chain_id, account_l1=self.account, account_l2=self.account, provider_l1=self.l1_provider, provider_l2=self.l2_provider, network=self.network)
+        cross_chain_messenger = CrossChainMessenger(l1_chain_id, l2_chain_id, account_l1=self.account, account_l2=self.account, provider_l1=self.l1_provider, provider_l2=self.l2_provider)
 
         balance_l1 = self.l1_provider.eth.get_balance(self.account.address)
         balance_l2 = self.l2_provider.eth.get_balance(self.account.address)
