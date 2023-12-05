@@ -76,7 +76,7 @@ class StandardBridge(Contract):
     
     def __init__(self, account, from_chain_id, to_chain_id, provider=None):
         
-        l1_to_l2 = determine_direction(from_chain_id, to_chain_id)
+        self.l1_to_l2 = determine_direction(from_chain_id, to_chain_id)
 
         if provider is None:
             self.provider = get_provider(from_chain_id)
@@ -88,7 +88,7 @@ class StandardBridge(Contract):
         if is_chain_supported(to_chain_id) is False:
             raise Exception(f"Destination Chain ID {to_chain_id} not supported: add it to the config.json file or open a request to add it.")
 
-        if l1_to_l2:
+        if self.l1_to_l2:
             self.address = read_addresses(from_chain_id, to_chain_id, layer="l1")["L1_STANDARD_BRIDGE"]
         else:
             self.address = read_addresses(to_chain_id, from_chain_id, layer="l2")["L2_STANDARD_BRIDGE"]
@@ -98,7 +98,7 @@ class StandardBridge(Contract):
 
         self.account = account
 
-        if l1_to_l2:
+        if self.l1_to_l2:
             self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("L1_STANDARD_BRIDGE"))
         else:
             self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("L2_STANDARD_BRIDGE"))
