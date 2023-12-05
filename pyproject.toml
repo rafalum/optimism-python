@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "optimism-python"
-version = "0.2.1"
+version = "0.2.2"
 description = "Unofficial Python Client for the OP-Stack"
 authors = ["rafalum <rafalum@pm.me>"]
 license = "MIT"
