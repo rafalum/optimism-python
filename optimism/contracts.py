@@ -1,7 +1,7 @@
 from web3 import Web3
 
 from .types import MessageStatus
-from .utils import get_provider, load_abi, determine_direction, is_network_supported, read_addresses
+from .utils import get_provider, load_abi, determine_direction, is_chain_supported, read_addresses
 
 class Contract():
 
@@ -17,17 +17,19 @@ class Contract():
     
 class OptimismPortal(Contract):
 
-    def __init__(self, account, provider=None, network="mainnet"):
+    def __init__(self, chain_id_l1, chain_id_l2, account, provider=None):
         
         if provider is None:
-            self.provider = get_provider(network=network)
+            self.provider = get_provider(chain_id_l1)
         else:
             self.provider = provider
 
-        if is_network_supported(network) is False:
-            raise Exception(f"Network {network} not supported: add it to the addresses.py file")
+        if is_chain_supported(chain_id_l1) is False:
+            raise Exception(f"Chain ID {chain_id_l1} not supported: add it to the config.json file or open a request to add it.")
+        if is_chain_supported(chain_id_l2) is False:
+            raise Exception(f"Chain ID {chain_id_l2} not supported: add it to the config.json file or open a request to add it.")
 
-        self.address = read_addresses("l1")["l1_" + network]["OPTIMISM_PORTAL"]
+        self.address = read_addresses(chain_id_l1, chain_id_l2, layer="l1")["OPTIMISM_PORTAL"]
         
         self.account = account
         self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("OPTIMISM_PORTAL"))
@@ -72,30 +74,31 @@ class OptimismPortal(Contract):
 
 class StandardBridge(Contract):
     
-    def __init__(self, account, from_chain_id=1, to_chain_id=10, provider=None, network="mainnet"):
+    def __init__(self, account, from_chain_id, to_chain_id, provider=None):
         
-        self.l1_to_l2 = determine_direction(from_chain_id, to_chain_id)
-        l2 = not self.l1_to_l2
+        l1_to_l2 = determine_direction(from_chain_id, to_chain_id)
 
         if provider is None:
-            self.provider = get_provider(l2=l2, network=network)
+            self.provider = get_provider(from_chain_id)
         else:
             self.provider = provider
 
-        if is_network_supported(network) is False:
-            raise Exception(f"Network {network} not supported: add it to the addresses.py file")
+        if is_chain_supported(from_chain_id) is False:
+            raise Exception(f"Origin Chain ID {from_chain_id} not supported: add it to the config.json file or open a request to add it.")
+        if is_chain_supported(to_chain_id) is False:
+            raise Exception(f"Destination Chain ID {to_chain_id} not supported: add it to the config.json file or open a request to add it.")
 
-        if self.l1_to_l2:
-            self.address = read_addresses("l1")["l1_" + network]["L1_STANDARD_BRIDGE"]
+        if l1_to_l2:
+            self.address = read_addresses(from_chain_id, to_chain_id, layer="l1")["L1_STANDARD_BRIDGE"]
         else:
-            self.address = read_addresses("l2")["l2_" + network]["L2_STANDARD_BRIDGE"]
+            self.address = read_addresses(to_chain_id, from_chain_id, layer="l2")["L2_STANDARD_BRIDGE"]
         
         self.from_chain_id = from_chain_id
         self.to_chain_id = to_chain_id
 
         self.account = account
 
-        if self.l1_to_l2:
+        if l1_to_l2:
             self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("L1_STANDARD_BRIDGE"))
         else:
             self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("L2_STANDARD_BRIDGE"))
@@ -181,28 +184,28 @@ class StandardBridge(Contract):
 
 class CrossChainMessengerContract(Contract):
 
-    def __init__(self, account, from_chain_id=1, to_chain_id=10, provider=None, network="mainnet"):
+    def __init__(self, account, from_chain_id=1, to_chain_id=10, provider=None):
 
         self.l1_to_l2 = determine_direction(from_chain_id, to_chain_id)
-        l2 = not self.l1_to_l2
 
         if provider is None:
-            self.provider = get_provider(l2=l2, network=network)
+            self.provider = get_provider(chain_id=from_chain_id)
         else:
             self.provider = provider
 
-        if is_network_supported(network) is False:
-            raise Exception(f"Network {network} not supported: add it to the addresses.py file")
+        if is_chain_supported(from_chain_id) is False:
+            raise Exception(f"Origin Chain ID {from_chain_id} not supported: add it to the config.json file or open a request to add it.")
+        if is_chain_supported(to_chain_id) is False:
+            raise Exception(f"Destination Chain ID {to_chain_id} not supported: add it to the config.json file or open a request to add it.")
 
         if self.l1_to_l2:
-            self.address = read_addresses("l1")["l1_" + network]["L1_CROSS_CHAIN_MESSENGER"]
+            self.address = read_addresses(from_chain_id, to_chain_id, layer="l1")["L1_CROSS_CHAIN_MESSENGER"]
         else:
-            self.address = read_addresses("l2")["l2_" + network]["L2_CROSS_CHAIN_MESSENGER"]
+            self.address = read_addresses(to_chain_id, from_chain_id, layer="l2")["L2_CROSS_CHAIN_MESSENGER"]
         
         self.from_chain_id = from_chain_id
         self.to_chain_id = to_chain_id
 
-        self.network = network
         self.account = account
 
         if self.l1_to_l2:
@@ -229,17 +232,19 @@ class CrossChainMessengerContract(Contract):
     
 class L2OutputOracle():
 
-    def __init__(self, account, provider=None, network="mainnet"):
+    def __init__(self, chain_id_l1, chain_id_l2, account, provider=None):
             
         if provider is None:
-            self.provider = get_provider(network=network)
+            self.provider = get_provider(chain_id_l1)
         else:
             self.provider = provider
 
-        if is_network_supported(network) is False:
-            raise Exception(f"Network {network} not supported: add it to the addresses.py file")
-
-        self.address = read_addresses("l1")["l1_" + network]["L2_OUTPUT_ORACLE"]
+        if is_chain_supported(chain_id_l1) is False:
+            raise Exception(f"Chain ID {chain_id_l1} not supported: add it to the config.json file or open a request to add it.")
+        if is_chain_supported(chain_id_l2) is False:
+            raise Exception(f"Chain ID {chain_id_l2} not supported: add it to the config.json file or open a request to add it.")
+    
+        self.address = read_addresses(chain_id_l1, chain_id_l2, layer="l1")["L2_OUTPUT_ORACLE"]
 
         self.account = account
 
@@ -275,14 +280,14 @@ class L2OutputOracle():
     
 class L2ToL1MessagePasser(Contract):
 
-    def __init__(self, account, provider=None, network="mainnet"):
+    def __init__(self, chain_id_l1, chain_id_l2, account, provider=None):
 
         if provider is None:
-            self.provider = get_provider(l2=True, network=network)
+            self.provider = get_provider(chain_id_l2)
         else:
             self.provider = provider
 
-        self.address = read_addresses("l2")["l2_" + network]["L2_TO_L1_MESSAGE_PASSER"]
+        self.address = read_addresses(chain_id_l1, chain_id_l2, layer="l2")["L2_TO_L1_MESSAGE_PASSER"]
 
         self.account = account
 
