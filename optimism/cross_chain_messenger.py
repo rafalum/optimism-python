@@ -37,7 +37,11 @@ class CrossChainMessenger():
 
     def deposit_eth(self, value):
         
-        return self.l1_cross_chain_messenger.send_message(self.account_l2.address, b"", 0, value)
+        return self.l1_cross_chain_messenger.send_message(self.account_l1.address, b"", 0, value)
+    
+    def deposit_eth_to(self, to, value):
+        
+        return self.l1_cross_chain_messenger.send_message(to, b"", 0, value)
     
     def deposit_erc20(self, token_address_l1, token_address_l2, value):
         
@@ -76,7 +80,13 @@ class CrossChainMessenger():
         
         l2_to_l1_message_passer = L2ToL1MessagePasser(self.chain_id_l1, self.chain_id_l2, self.account_l2, provider=self.provider_l2)
         
-        return l2_to_l1_message_passer.initiate_withdrawl(self.account_l1.address, 0, b"", value)
+        return l2_to_l1_message_passer.initiate_withdrawl(self.account_l2.address, 0, b"", value)
+    
+    def withdraw_eth_to(self, to, value):
+
+        l2_to_l1_message_passer = L2ToL1MessagePasser(self.chain_id_l1, self.chain_id_l2, self.account_l2, provider=self.provider_l2)
+        
+        return l2_to_l1_message_passer.initiate_withdrawl(to, 0, b"", value)
     
     def withdraw_erc20(self, token_address_l1, token_address_l2, value):
 
