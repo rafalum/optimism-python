@@ -6,20 +6,20 @@ from .contracts import L2ToL1MessagePasser, L2OutputOracle, OptimismPortal, Cros
 
 class CrossChainMessenger():
 
-    def __init__(self, chain_id_l1, chain_id_l2, account_l1=None, account_l2=None, provider_l1=None, provider_l2=None, network="mainnet"):
+    def __init__(self, chain_id_l1, chain_id_l2, account_l1=None, account_l2=None, provider_l1=None, provider_l2=None):
 
         if account_l1 is None:
-            account_l1 = get_account(network=network)
+            account_l1 = get_account(chain_id=chain_id_l1)
         if account_l2 is None:
-            account_l2 = get_account(l2=True, network=network)
+            account_l2 = get_account(chain_id=chain_id_l2)
 
         self.account_l1 = account_l1
         self.account_l2 = account_l2
 
         if provider_l1 is None:
-            provider_l1 = get_provider(network=network)
+            provider_l1 = get_provider(chain_id=chain_id_l1)
         if provider_l2 is None:
-            provider_l2 = get_provider(l2=True, network=network)
+            provider_l2 = get_provider(chain_id=chain_id_l2)
 
         self.provider_l1 = provider_l1
         self.provider_l2 = provider_l2
@@ -27,15 +27,13 @@ class CrossChainMessenger():
         self.chain_id_l1 = chain_id_l1
         self.chain_id_l2 = chain_id_l2
 
-        self.network = network
+        self.challenge_period = CHALLENGE_PERIOD_MAINNET if chain_id_l1 == "1" else CHALLENGE_PERIOD_TESTNET
 
-        self.challenge_period = CHALLENGE_PERIOD_MAINNET if network == "mainnet" else CHALLENGE_PERIOD_TESTNET
+        self.l1_cross_chain_messenger = CrossChainMessengerContract(account_l1, chain_id_l1, chain_id_l2, provider=provider_l1)
+        self.l2_cross_chain_messenger = CrossChainMessengerContract(account_l2, chain_id_l2, chain_id_l1, provider=provider_l2)
 
-        self.l1_cross_chain_messenger = CrossChainMessengerContract(account_l1, chain_id_l1, chain_id_l2, provider=provider_l1, network=network)
-        self.l2_cross_chain_messenger = CrossChainMessengerContract(account_l2, chain_id_l2, chain_id_l1, provider=provider_l2, network=network)
-
-        self.l1_bridge = StandardBridge(account_l1, from_chain_id=chain_id_l1, to_chain_id=chain_id_l2, provider=provider_l1, network=network)
-        self.l2_bridge = StandardBridge(account_l2, from_chain_id=chain_id_l2, to_chain_id=chain_id_l1, provider=provider_l2, network=network)
+        self.l1_bridge = StandardBridge(account_l1, from_chain_id=chain_id_l1, to_chain_id=chain_id_l2, provider=provider_l1)
+        self.l2_bridge = StandardBridge(account_l2, from_chain_id=chain_id_l2, to_chain_id=chain_id_l1, provider=provider_l2)
 
     def deposit_eth(self, value):
         
@@ -76,7 +74,7 @@ class CrossChainMessenger():
 
     def withdraw_eth(self, value):
         
-        l2_to_l1_message_passer = L2ToL1MessagePasser(self.account_l2, provider=self.provider_l2, network=self.network)
+        l2_to_l1_message_passer = L2ToL1MessagePasser(self.chain_id_l1, self.chain_id_l2, self.account_l2, provider=self.provider_l2)
         
         return l2_to_l1_message_passer.initiate_withdrawl(self.account_l1.address, 0, b"", value)
     
@@ -102,7 +100,7 @@ class CrossChainMessenger():
         withdrawl_message, withrawl_message_hash = to_low_level_message(l2_txn, l2_txn_receipt)
         message_proof = self.get_bedrock_message_proof(l2_txn, withrawl_message_hash)
 
-        optimism_portal = OptimismPortal(self.account_l1, provider=self.provider_l1, network=self.network)
+        optimism_portal = OptimismPortal(self.chain_id_l1, self.chain_id_l2, self.account_l1, provider=self.provider_l1)
         return optimism_portal.prove_withdrawl_transaction(withdrawl_message.values(), message_proof.get_l2_output_index(), message_proof.get_output_root_proof(), message_proof.get_withdrawl_proof())
     
     def finalize_message(self, l2_txn_hash):
@@ -112,7 +110,7 @@ class CrossChainMessenger():
 
         withdrawl_message, withrawl_message_hash = to_low_level_message(l2_txn, l2_txn_receipt)
         
-        optimism_portal = OptimismPortal(self.account_l1, provider=self.provider_l1, network=self.network)
+        optimism_portal = OptimismPortal(self.chain_id_l1, self.chain_id_l2, self.account_l1, provider=self.provider_l1)
         return optimism_portal.finalize_withdrawl_transaction(tuple(withdrawl_message.values()))
 
 
@@ -120,15 +118,14 @@ class CrossChainMessenger():
 
         l2_block_number = txn.blockNumber
 
-        l2_output_oracle = L2OutputOracle(self.account_l1, network=self.network)
+        l2_output_oracle = L2OutputOracle(self.chain_id_l1, self.chain_id_l2, self.account_l1)
 
         latest_l2_output_index = l2_output_oracle.latest_output_index()
         output_root, timestamp, l2_block_number = l2_output_oracle.get_l2_output(latest_l2_output_index)
 
         message_slot = hash_message_hash(withdrawl_hash)
 
-        state_trie_proof = make_state_trie_proof(self.provider_l2, l2_block_number, read_addresses("l2")["l2_" + self.network]["L2_TO_L1_MESSAGE_PASSER"], message_slot)
-
+        state_trie_proof = make_state_trie_proof(self.provider_l2, l2_block_number, read_addresses(self.chain_id_l1, self.chain_id_l2, layer="l2")["L2_TO_L1_MESSAGE_PASSER"], message_slot)
         block = self.provider_l2.eth.get_block(l2_block_number)
 
         output_root_proof = OutputRootProof(version=OUTPUT_ROOT_PROOF_VERSION,
@@ -167,7 +164,7 @@ class CrossChainMessenger():
                 return MessageStatus.UNCONFIRMED_L2_TO_L1_MESSAGE
             else:
                 if txn_receipt.status == 1:
-                    l2_output_oracle = L2OutputOracle(self.account_l1, provider=self.provider_l1, network=self.network)
+                    l2_output_oracle = L2OutputOracle(self.chain_id_l1, self.chain_id_l2, self.account_l1, provider=self.provider_l1)
                     latest_block_number = l2_output_oracle.latest_block_number()
 
                     try:
@@ -178,7 +175,7 @@ class CrossChainMessenger():
                     if int(latest_block_number) < int(txn.blockNumber):
                         return MessageStatus.STATE_ROOT_NOT_PUBLISHED
                     else:
-                        optimism_portal = OptimismPortal(self.account_l1, provider=self.provider_l1, network=self.network)
+                        optimism_portal = OptimismPortal(self.chain_id_l1, self.chain_id_l2, self.account_l1, provider=self.provider_l1)
                         proven = optimism_portal.proven_withdrawls(message_hash)
                         if proven[-1] == 0:
                             return MessageStatus.READY_TO_PROVE
