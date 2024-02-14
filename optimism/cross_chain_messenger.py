@@ -267,13 +267,13 @@ class CrossChainMessenger():
     def get_erc20_withdrawals_by_address(self, address, from_block=0, to_block='latest'):
             
         """
-        Returns a list of withdrawals initiated by the given address
+        Returns a list of ERC20 withdrawals initiated by the given address
         """
 
         events = self.l2_bridge.contract.events.ERC20BridgeInitiated.create_filter(
             fromBlock=from_block,
             toBlock=to_block,
-            argument_filters={'from': address}  # Adjust based on the actual indexed parameter in the event
+            argument_filters={'from': address}
         ).get_all_entries()
 
         token_bridge_messages = []
@@ -297,6 +297,38 @@ class CrossChainMessenger():
         token_bridge_messages.sort(key=lambda x: x['blockNumber'], reverse=True)
 
         return token_bridge_messages
+    
+    def get_eth_withdrawals_by_address(self, address, from_block=0, to_block='latest'):
+                
+            """
+            Returns a list of ETH withdrawals initiated by the given address
+            """
+    
+            events = self.l2_bridge.contract.events.ETHBridgeInitiated.create_filter(
+                fromBlock=from_block,
+                toBlock=to_block,
+                argument_filters={'from': address} 
+            ).get_all_entries()
+    
+            eth_bridge_messages = []
+    
+            for event in events:
+    
+                message = {
+                    'direction': 'L2_TO_L1',
+                    'from': event.args['from'],
+                    'to': event.args['to'],
+                    'amount': event.args['amount'],
+                    'data': event.args['extraData'],
+                    'logIndex': event.logIndex,
+                    'blockNumber': event.blockNumber,
+                    'transactionHash': event.transactionHash.hex()
+                }
+                eth_bridge_messages.append(message)
+    
+            eth_bridge_messages.sort(key=lambda x: x['blockNumber'], reverse=True)
+    
+            return eth_bridge_messages
     
     def estimate_l2_gas_limit(self, message):
         raise NotImplementedError
