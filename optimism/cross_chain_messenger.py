@@ -232,6 +232,38 @@ class CrossChainMessenger():
 
         return token_bridge_messages
     
+    def get_eth_deposits_by_address(self, address, from_block=0, to_block="latest"):
+
+        """
+        Returns a list of ETH deposits initiated by the given address
+        """
+        
+        events = self.l1_bridge.contract.events.ETHDepositInitiated.create_filter(
+            fromBlock=from_block,
+            toBlock=to_block,
+            argument_filters={'from': address}
+        ).get_all_entries()
+
+        eth_bridge_messages = []
+
+        for event in events:
+
+            message = {
+                'direction': 'L1_TO_L2',
+                'from': event.args['from'],
+                'to': event.args['to'],
+                'amount': event.args['amount'],
+                'data': event.args['extraData'],
+                'logIndex': event.logIndex,
+                'blockNumber': event.blockNumber,
+                'transactionHash': event.transactionHash.hex()
+            }
+            eth_bridge_messages.append(message)
+
+        eth_bridge_messages.sort(key=lambda x: x['blockNumber'], reverse=True)
+
+        return eth_bridge_messages
+    
     def get_withdrawls_by_address(self, address, from_block=0, to_block="latest"):
         raise NotImplementedError
     
