@@ -198,8 +198,39 @@ class CrossChainMessenger():
                 else:
                     return MessageStatus.FAILED_L2_TO_L1_MESSAGE
     
-    def get_deposits_by_address(self, address, from_block=0, to_block="latest"):
-        raise NotImplementedError
+    def get_erc20_deposits_by_address(self, address, from_block=0, to_block="latest"):
+
+        """
+        Returns a list of ERC20 deposits initiated by the given address
+        """
+        
+        events = self.l1_bridge.contract.events.ERC20DepositInitiated.create_filter(
+            fromBlock=from_block,
+            toBlock=to_block,
+            argument_filters={'from': address}
+        ).get_all_entries()
+
+        token_bridge_messages = []
+
+        for event in events:
+
+            message = {
+                'direction': 'L1_TO_L2',
+                'from': event.args['from'],
+                'to': event.args['to'],
+                'l1Token': event.args['l1Token'],
+                'l2Token': event.args['l2Token'],
+                'amount': event.args['amount'],
+                'data': event.args['extraData'],
+                'logIndex': event.logIndex,
+                'blockNumber': event.blockNumber,
+                'transactionHash': event.transactionHash.hex()
+            }
+            token_bridge_messages.append(message)
+
+        token_bridge_messages.sort(key=lambda x: x['blockNumber'], reverse=True)
+
+        return token_bridge_messages
     
     def get_withdrawls_by_address(self, address, from_block=0, to_block="latest"):
         raise NotImplementedError
