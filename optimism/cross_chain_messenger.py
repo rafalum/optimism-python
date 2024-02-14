@@ -264,8 +264,39 @@ class CrossChainMessenger():
 
         return eth_bridge_messages
     
-    def get_withdrawls_by_address(self, address, from_block=0, to_block="latest"):
-        raise NotImplementedError
+    def get_erc20_withdrawals_by_address(self, address, from_block=0, to_block='latest'):
+            
+        """
+        Returns a list of withdrawals initiated by the given address
+        """
+
+        events = self.l2_bridge.contract.events.ERC20BridgeInitiated.create_filter(
+            fromBlock=from_block,
+            toBlock=to_block,
+            argument_filters={'from': address}  # Adjust based on the actual indexed parameter in the event
+        ).get_all_entries()
+
+        token_bridge_messages = []
+
+        for event in events:
+
+            message = {
+                'direction': 'L2_TO_L1',
+                'from': event.args['from'],
+                'to': event.args['to'],
+                'l1Token': event.args['remoteToken'],
+                'l2Token': event.args['localToken'],
+                'amount': event.args['amount'],
+                'data': event.args['extraData'],
+                'logIndex': event.logIndex,
+                'blockNumber': event.blockNumber,
+                'transactionHash': event.transactionHash.hex()
+            }
+            token_bridge_messages.append(message)
+
+        token_bridge_messages.sort(key=lambda x: x['blockNumber'], reverse=True)
+
+        return token_bridge_messages
     
     def estimate_l2_gas_limit(self, message):
         raise NotImplementedError
