@@ -63,19 +63,19 @@ class OutputRootProof():
 
 class BedrockMessageProof():
 
-    def __init__(self, output_root_proof, withdrawl_proof, l2_output_index):
+    def __init__(self, output_root_proof, withdrawl_proof, dispute_game_index):
 
         self.output_root_proof = output_root_proof
         self.withdrawl_proof = withdrawl_proof
-        self.l2_output_index = l2_output_index
+        self.dispute_game_index = dispute_game_index
 
     def __str__(self):
             
-        return f"BedrockMessageProof(output_root_proof={self.output_root_proof}, withdrawl_proof={self.withdrawl_proof}, l2_output_index={self.l2_output_index})"
+        return f"BedrockMessageProof(output_root_proof={self.output_root_proof}, withdrawl_proof={self.withdrawl_proof}, dispute_game_index={self.dispute_game_index})"
     
-    def get_l2_output_index(self):
+    def get_dispute_game_index(self):
 
-        return self.l2_output_index
+        return self.dispute_game_index
     
     def get_output_root_proof(self):
 

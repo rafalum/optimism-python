@@ -2,7 +2,7 @@ from .constants import OUTPUT_ROOT_PROOF_VERSION, CHALLENGE_PERIOD_MAINNET, CHAL
 
 from .types import MessageStatus, OutputRootProof, BedrockMessageProof
 from .utils import get_provider, get_account, to_low_level_message, make_state_trie_proof, hash_message_hash, read_addresses, load_abi
-from .contracts import L2ToL1MessagePasser, L2OutputOracle, OptimismPortal, CrossChainMessengerContract, StandardBridge
+from .contracts import L2ToL1MessagePasser, DisputeGameFactory, FaultDisputeGame, OptimismPortal, CrossChainMessengerContract, StandardBridge
 
 class CrossChainMessenger():
 
@@ -111,7 +111,7 @@ class CrossChainMessenger():
         message_proof = self.get_bedrock_message_proof(l2_txn, withrawl_message_hash)
 
         optimism_portal = OptimismPortal(self.chain_id_l1, self.chain_id_l2, self.account_l1, provider=self.provider_l1)
-        return optimism_portal.prove_withdrawl_transaction(withdrawl_message.values(), message_proof.get_l2_output_index(), message_proof.get_output_root_proof(), message_proof.get_withdrawl_proof())
+        return optimism_portal.prove_withdrawl_transaction(withdrawl_message.values(), message_proof.get_dispute_game_index(), message_proof.get_output_root_proof(), message_proof.get_withdrawl_proof())
     
     def finalize_message(self, l2_txn_hash):
 
@@ -128,10 +128,15 @@ class CrossChainMessenger():
 
         l2_block_number = txn.blockNumber
 
-        l2_output_oracle = L2OutputOracle(self.chain_id_l1, self.chain_id_l2, self.account_l1)
+        dispute_game_factory = DisputeGameFactory(self.chain_id_l1, self.chain_id_l2, provider=self.provider_l1)
+        game_count = dispute_game_factory.game_count()
 
-        latest_l2_output_index = l2_output_oracle.latest_output_index()
-        output_root, timestamp, l2_block_number = l2_output_oracle.get_l2_output(latest_l2_output_index)
+        game_index = game_count - 1
+
+        latest_game_type, latest_game_timestamp, latest_game_address = dispute_game_factory.game_at_index(game_index)
+
+        fault_dispute_game = FaultDisputeGame(latest_game_address, self.provider_l1)
+        l2_block_number = fault_dispute_game.l2_block_number()
 
         message_slot = hash_message_hash(withdrawl_hash)
 
@@ -145,7 +150,7 @@ class CrossChainMessenger():
         
         bedrock_message_proof = BedrockMessageProof(output_root_proof=output_root_proof,
                                                     withdrawl_proof=[el.hex() for el in state_trie_proof.storage_proof],
-                                                    l2_output_index=latest_l2_output_index)
+                                                    dispute_game_index=game_index)
         
         return bedrock_message_proof
     
@@ -174,8 +179,16 @@ class CrossChainMessenger():
                 return MessageStatus.UNCONFIRMED_L2_TO_L1_MESSAGE
             else:
                 if txn_receipt.status == 1:
-                    l2_output_oracle = L2OutputOracle(self.chain_id_l1, self.chain_id_l2, self.account_l1, provider=self.provider_l1)
-                    latest_block_number = l2_output_oracle.latest_block_number()
+
+                    dispute_game_factory = DisputeGameFactory(self.chain_id_l1, self.chain_id_l2, provider=self.provider_l1)
+                    game_count = dispute_game_factory.game_count()
+
+                    game_index = game_count - 1
+
+                    latest_game_type, latest_game_timestamp, latest_game_address = dispute_game_factory.game_at_index(game_index)
+
+                    fault_dispute_game = FaultDisputeGame(latest_game_address, self.provider_l1)
+                    latest_block_number = fault_dispute_game.l2_block_number()
 
                     try:
                         _, message_hash = to_low_level_message(txn, txn_receipt)
@@ -186,12 +199,12 @@ class CrossChainMessenger():
                         return MessageStatus.STATE_ROOT_NOT_PUBLISHED
                     else:
                         optimism_portal = OptimismPortal(self.chain_id_l1, self.chain_id_l2, self.account_l1, provider=self.provider_l1)
-                        proven = optimism_portal.proven_withdrawls(message_hash)
+                        proven = optimism_portal.proven_withdrawls(message_hash, txn["from"])
                         if proven[-1] == 0:
                             return MessageStatus.READY_TO_PROVE
                         else:
                             current_timestamp = self.provider_l2.eth.get_block(self.provider_l2.eth.block_number).timestamp
-                            if current_timestamp > proven[1] + self.challenge_period:
+                            if current_timestamp > proven[1] + optimism_portal.proof_maturity_delay_seconds():
                                 return MessageStatus.READY_FOR_RELAY
                             else:
                                 return MessageStatus.IN_CHALLENGE_PERIOD
