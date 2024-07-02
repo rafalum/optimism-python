@@ -59,7 +59,7 @@ class OptimismPortal(Contract):
         
         finalize_withdrawl_transaction_tx = self.contract.functions.finalizeWithdrawalTransaction(tx).build_transaction({
             "from": self.account.address,
-            "gas": 500000,
+            "gas": 100000,
             "nonce": self.provider.eth.get_transaction_count(self.account.address)
         })
 
@@ -68,9 +68,13 @@ class OptimismPortal(Contract):
     def is_output_finalized():
         pass
 
-    def proven_withdrawls(self, withdrawl_hash):
+    def proof_maturity_delay_seconds(self):
 
-        return self.contract.functions.provenWithdrawals(withdrawl_hash).call()
+        return self.contract.functions.proofMaturityDelaySeconds().call()
+
+    def proven_withdrawls(self, withdrawl_hash, proof_submitter):
+
+        return self.contract.functions.provenWithdrawals(withdrawl_hash, proof_submitter).call()
 
 class StandardBridge(Contract):
     
@@ -278,6 +282,51 @@ class L2OutputOracle():
 
         return output_root.hex(), timestamp, l2_block_number
     
+class DisputeGameFactory(Contract):
+    
+    def __init__(self, chain_id_l1, chain_id_l2, provider=None):
+        
+        if provider is None:
+            self.provider = get_provider(chain_id_l1)
+        else:
+            self.provider = provider
+
+        if is_chain_supported(chain_id_l1) is False:
+            raise Exception(f"Chain ID {chain_id_l1} not supported: add it to the config.json file or open a request to add it.")
+        if is_chain_supported(chain_id_l2) is False:
+            raise Exception(f"Chain ID {chain_id_l2} not supported: add it to the config.json file or open a request to add it.")
+        
+        self.address = read_addresses(chain_id_l1, chain_id_l2, layer="l1")["DISPUTE_GAME_FACTORY"]
+
+        self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("DISPUTE_GAME_FACTORY"))
+
+    def game_count(self):
+
+        return self.contract.functions.gameCount().call()
+    
+    def game_at_index(self, index):
+
+        return self.contract.functions.gameAtIndex(index).call()
+    
+
+class FaultDisputeGame(Contract):
+
+    def __init__(self, address, provider):
+        
+        self.provider = provider
+
+        self.address = address
+
+        self.contract = self.provider.eth.contract(address=self.address, abi=load_abi("FAULT_DISPUTE_GAME"))
+
+    def root_claim(self):
+            
+        return self.contract.functions.rootClaim().call()
+    
+    def l2_block_number(self):
+
+        return self.contract.functions.l2BlockNumber().call()
+    
 class L2ToL1MessagePasser(Contract):
 
     def __init__(self, chain_id_l1, chain_id_l2, account, provider=None):
@@ -297,7 +346,7 @@ class L2ToL1MessagePasser(Contract):
 
         initiate_withdrawl_tx = self.contract.functions.initiateWithdrawal(to, gas_limit, data).build_transaction({
             "from": self.account.address,
-            "gas": 500000,
+            "gas": 100000,
             "nonce": self.provider.eth.get_transaction_count(self.account.address),
             "value": value
         })
