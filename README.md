@@ -26,6 +26,7 @@ pip install optimism-python
 ```python
 from web3 import Web3
 from optimism import CrossChainMessenger
+from optimism.types import Chains
 
 # Create a node provider for each chain
 provider_l1 = Web3(Web3.HTTPProvider("https://eth-mainnet.g.alchemy.com/v2/<your-alchemy-key>"))
@@ -36,8 +37,8 @@ account_l1 = provider_l1.eth.account.from_key("<your-private-key>")
 account_l2 = provider_l2.eth.account.from_key("<your-private-key>")
 
 # Create a messenger instance
-messenger = CrossChainMessenger(chain_id_l1=1,          # Ethereum Mainnet
-                                chain_id_l2=10,         # Optimism Mainnet
+messenger = CrossChainMessenger(chain_l1=Chains.ETHEREUM_MAINNET,
+                                chain_l2=Chains.OPTIMISM_MAINNET,
                                 account_l1=account_l1, 
                                 account_l2=account_l2,
                                 provider_l1=provider_l1,
