@@ -11,6 +11,26 @@ class MessageStatus(Enum):
     READY_FOR_RELAY = 7
     RELAYED = 8
 
+class ChainInfo:
+    def __init__(self, chain_id, layer):
+        self.chain_id = chain_id
+        self.layer = layer
+
+class Chains(Enum):
+    ETHEREUM_MAINNET = ChainInfo(1, 'L1')
+    OPTIMISM_MAINNET = ChainInfo(10, 'L2')
+    BASE_MAINNET = ChainInfo(8453, 'L2')
+
+    ETHEREUM_SEPOLIA = ChainInfo(11155111, 'L1')
+    OPTIMISM_SEPOLIA = ChainInfo(11155420, 'L2')
+    BASE_SEPOLIA = ChainInfo(84532, 'L2')
+
+    def chain_id(self):
+        return self.value.chain_id
+
+    def layer(self):
+        return self.value.layer
+
 class StateTrieProof():
 
     def __init__(self, account_proof, storage_proof, storage_value, storage_root):

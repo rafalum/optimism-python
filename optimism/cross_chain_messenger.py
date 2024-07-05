@@ -1,39 +1,31 @@
-from .constants import OUTPUT_ROOT_PROOF_VERSION, CHALLENGE_PERIOD_MAINNET, CHALLENGE_PERIOD_TESTNET
+from .constants import OUTPUT_ROOT_PROOF_VERSION
 
-from .types import MessageStatus, OutputRootProof, BedrockMessageProof
-from .utils import get_provider, get_account, to_low_level_message, make_state_trie_proof, hash_message_hash, read_addresses, load_abi
+from .types import MessageStatus, OutputRootProof, BedrockMessageProof, Chains
+from .utils import to_low_level_message, make_state_trie_proof, hash_message_hash, read_addresses, load_abi
 from .contracts import L2ToL1MessagePasser, DisputeGameFactory, FaultDisputeGame, OptimismPortal, CrossChainMessengerContract, StandardBridge
 
 class CrossChainMessenger():
 
-    def __init__(self, chain_id_l1, chain_id_l2, account_l1=None, account_l2=None, provider_l1=None, provider_l2=None):
+    def __init__(self, chain_l1, chain_l2, account_l1, account_l2, provider_l1, provider_l2):
 
-        if account_l1 is None:
-            account_l1 = get_account(chain_id=chain_id_l1)
-        if account_l2 is None:
-            account_l2 = get_account(chain_id=chain_id_l2)
-
-        self.account_l1 = account_l1
-        self.account_l2 = account_l2
-
-        if provider_l1 is None:
-            provider_l1 = get_provider(chain_id=chain_id_l1)
-        if provider_l2 is None:
-            provider_l2 = get_provider(chain_id=chain_id_l2)
+        if isinstance(chain_l1, Chains) and isinstance(chain_l2, Chains):
+            self.chain_id_l1 = chain_l1.chain_id()
+            self.chain_id_l2 = chain_l2.chain_id()
+        else:
+            self.chain_id_l1 = chain_l1
+            self.chain_id_l2 = chain_l2
 
         self.provider_l1 = provider_l1
         self.provider_l2 = provider_l2
 
-        self.chain_id_l1 = chain_id_l1
-        self.chain_id_l2 = chain_id_l2
+        self.account_l1 = account_l1
+        self.account_l2 = account_l2
 
-        self.challenge_period = CHALLENGE_PERIOD_MAINNET if chain_id_l1 == "1" else CHALLENGE_PERIOD_TESTNET
+        self.l1_cross_chain_messenger = CrossChainMessengerContract(account_l1, self.chain_id_l1, self.chain_id_l2, provider=provider_l1)
+        self.l2_cross_chain_messenger = CrossChainMessengerContract(account_l2, self.chain_id_l2, self.chain_id_l1, provider=provider_l2)
 
-        self.l1_cross_chain_messenger = CrossChainMessengerContract(account_l1, chain_id_l1, chain_id_l2, provider=provider_l1)
-        self.l2_cross_chain_messenger = CrossChainMessengerContract(account_l2, chain_id_l2, chain_id_l1, provider=provider_l2)
-
-        self.l1_bridge = StandardBridge(account_l1, from_chain_id=chain_id_l1, to_chain_id=chain_id_l2, provider=provider_l1)
-        self.l2_bridge = StandardBridge(account_l2, from_chain_id=chain_id_l2, to_chain_id=chain_id_l1, provider=provider_l2)
+        self.l1_bridge = StandardBridge(account_l1, from_chain_id=self.chain_id_l1, to_chain_id=self.chain_id_l2, provider=provider_l1)
+        self.l2_bridge = StandardBridge(account_l2, from_chain_id=self.chain_id_l2, to_chain_id=self.chain_id_l1, provider=provider_l2)
 
     def deposit_eth(self, value):
         
