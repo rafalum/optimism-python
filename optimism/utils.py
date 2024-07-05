@@ -2,33 +2,12 @@ import os
 import json
 
 from web3 import Web3
-from dotenv import load_dotenv
 
 from .constants import MESSAGE_PASSED_ID
-from .types import MessagePassedEvent, StateTrieProof
-
-load_dotenv()
+from .types import MessagePassedEvent, StateTrieProof, Chains
 
 def get_env_variable(var_name):
     return os.environ.get(var_name)
-
-def get_provider(chain_id):
-
-    if is_chain_supported(chain_id) is False:
-        raise Exception(f"Chain ID {chain_id} not supported: add it to the config.json file or open a request to add it.")
-    
-    provider_url = get_env_variable("PROVIDER_URL_" + str(chain_id))
-
-    return Web3(Web3.HTTPProvider(provider_url))
-
-def get_account(chain_id):
-
-    if is_chain_supported(chain_id) is False:
-        raise Exception(f"Chain ID {chain_id} not supported: add it to the config.json file or open a request to add it.")
-    
-    pk = get_env_variable("PRIVATE_KEY_" + str(chain_id))
-
-    return get_provider(chain_id).eth.account.from_key(pk)
 
 def load_abi(name: str) -> str:
 
@@ -39,11 +18,16 @@ def load_abi(name: str) -> str:
         abi: str = json.load(f)
     return abi
 
-def determine_direction(from_chain_id, to_chain_id):
-    if from_chain_id < to_chain_id:
+def is_l1_to_l2(from_chain_id, to_chain_id):
+
+    chain_id_to_info = {chain.value.chain_id: chain.value.layer for chain in Chains}
+
+    if chain_id_to_info.get(from_chain_id) == "L1" and chain_id_to_info.get(to_chain_id) == "L2":
         return True
-    else:
+    elif chain_id_to_info.get(from_chain_id) == "L2" and chain_id_to_info.get(to_chain_id) == "L1":
         return False
+    else:
+        raise ValueError("Invalid chain ids")
     
 def hash_message_hash(message_hash: str) -> str:
     # Web3 provides utility functions similar to ethers

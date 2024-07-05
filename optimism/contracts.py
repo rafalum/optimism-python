@@ -1,7 +1,7 @@
 from web3 import Web3
 
 from .types import MessageStatus
-from .utils import get_provider, load_abi, determine_direction, is_chain_supported, read_addresses
+from .utils import load_abi, is_l1_to_l2, is_chain_supported, read_addresses
 
 class Contract():
 
@@ -17,12 +17,9 @@ class Contract():
     
 class OptimismPortal(Contract):
 
-    def __init__(self, chain_id_l1, chain_id_l2, account, provider=None):
+    def __init__(self, chain_id_l1, chain_id_l2, account, provider):
         
-        if provider is None:
-            self.provider = get_provider(chain_id_l1)
-        else:
-            self.provider = provider
+        self.provider = provider
 
         if is_chain_supported(chain_id_l1) is False:
             raise Exception(f"Chain ID {chain_id_l1} not supported: add it to the config.json file or open a request to add it.")
@@ -78,14 +75,11 @@ class OptimismPortal(Contract):
 
 class StandardBridge(Contract):
     
-    def __init__(self, account, from_chain_id, to_chain_id, provider=None):
+    def __init__(self, account, from_chain_id, to_chain_id, provider):
         
-        self.l1_to_l2 = determine_direction(from_chain_id, to_chain_id)
+        self.l1_to_l2 = is_l1_to_l2(from_chain_id, to_chain_id)
 
-        if provider is None:
-            self.provider = get_provider(from_chain_id)
-        else:
-            self.provider = provider
+        self.provider = provider
 
         if is_chain_supported(from_chain_id) is False:
             raise Exception(f"Origin Chain ID {from_chain_id} not supported: add it to the config.json file or open a request to add it.")
@@ -188,14 +182,11 @@ class StandardBridge(Contract):
 
 class CrossChainMessengerContract(Contract):
 
-    def __init__(self, account, from_chain_id=1, to_chain_id=10, provider=None):
+    def __init__(self, account, from_chain_id, to_chain_id, provider):
 
-        self.l1_to_l2 = determine_direction(from_chain_id, to_chain_id)
+        self.l1_to_l2 = is_l1_to_l2(from_chain_id, to_chain_id)
 
-        if provider is None:
-            self.provider = get_provider(chain_id=from_chain_id)
-        else:
-            self.provider = provider
+        self.provider = provider
 
         if is_chain_supported(from_chain_id) is False:
             raise Exception(f"Origin Chain ID {from_chain_id} not supported: add it to the config.json file or open a request to add it.")
@@ -236,12 +227,9 @@ class CrossChainMessengerContract(Contract):
     
 class L2OutputOracle():
 
-    def __init__(self, chain_id_l1, chain_id_l2, account, provider=None):
+    def __init__(self, chain_id_l1, chain_id_l2, account, provider):
             
-        if provider is None:
-            self.provider = get_provider(chain_id_l1)
-        else:
-            self.provider = provider
+        self.provider = provider
 
         if is_chain_supported(chain_id_l1) is False:
             raise Exception(f"Chain ID {chain_id_l1} not supported: add it to the config.json file or open a request to add it.")
@@ -284,12 +272,9 @@ class L2OutputOracle():
     
 class DisputeGameFactory(Contract):
     
-    def __init__(self, chain_id_l1, chain_id_l2, provider=None):
+    def __init__(self, chain_id_l1, chain_id_l2, provider):
         
-        if provider is None:
-            self.provider = get_provider(chain_id_l1)
-        else:
-            self.provider = provider
+        self.provider = provider
 
         if is_chain_supported(chain_id_l1) is False:
             raise Exception(f"Chain ID {chain_id_l1} not supported: add it to the config.json file or open a request to add it.")
@@ -329,12 +314,9 @@ class FaultDisputeGame(Contract):
     
 class L2ToL1MessagePasser(Contract):
 
-    def __init__(self, chain_id_l1, chain_id_l2, account, provider=None):
+    def __init__(self, chain_id_l1, chain_id_l2, account, provider):
 
-        if provider is None:
-            self.provider = get_provider(chain_id_l2)
-        else:
-            self.provider = provider
+        self.provider = provider
 
         self.address = read_addresses(chain_id_l1, chain_id_l2, layer="l2")["L2_TO_L1_MESSAGE_PASSER"]
 
